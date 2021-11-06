@@ -22,6 +22,8 @@ namespace OBSPlugin
         public int BlurSize = 25;
         public bool ChatLogBlur = true;
         public bool PartyListBlur = true;
+        public bool TargetBlur = false;
+        public bool TargetTargetBlur = true;
         public List<Blur> BlurList = new();
 
         public void Initialize(DalamudPluginInterface pluginInterface)

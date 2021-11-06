@@ -11,6 +11,7 @@ using Newtonsoft.Json.Linq;
 using OBSPlugin.Attributes;
 using OBSWebsocketDotNet;
 using OBSPlugin.Objects;
+using OBSWebsocketDotNet.Types;
 
 namespace OBSPlugin
 {
@@ -45,12 +46,18 @@ namespace OBSPlugin
 
         internal OBSWebsocket obs;
         internal bool ConnectionFailed = false;
+        internal StreamStatus streamStatus;
+        internal OutputState obsStatus = OutputState.Stopped;
 
         public string Name => "OBS Plugin";
 
         public Plugin()
         {
             obs = new OBSWebsocket();
+            obs.Connected += onConnect;
+            obs.StreamStatus += onStreamData;
+            obs.StreamingStateChanged += onStreamingStateChange;
+
             this.config = (Configuration)PluginInterface.GetPluginConfig() ?? new Configuration();
             this.config.Initialize(PluginInterface);
 
@@ -94,6 +101,24 @@ namespace OBSPlugin
                 PluginLog.Error("Connection error {0}", e);
             }
             return false;
+        }
+        private void onConnect(object sender, EventArgs e)
+        {
+            var streamStatus = obs.GetStreamingStatus();
+            if (streamStatus.IsStreaming)
+                onStreamingStateChange(obs, OutputState.Started);
+            else
+                onStreamingStateChange(obs, OutputState.Stopped);
+        }
+
+        private void onStreamData(OBSWebsocket sender, StreamStatus data)
+        {
+            streamStatus = data;
+        }
+
+        private void onStreamingStateChange(OBSWebsocket sender, OutputState newState)
+        {
+            obsStatus = newState;
         }
 
         [Command("/obs")]

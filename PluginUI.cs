@@ -3,6 +3,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using ImGuiNET;
 using Newtonsoft.Json.Linq;
 using OBSPlugin.Objects;
+using OBSWebsocketDotNet.Types;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -41,6 +42,15 @@ namespace OBSPlugin
                         if (ImGui.BeginChild("Connection##SettingsRegion"))
                         {
                             DrawConnectionSettings();
+                            ImGui.EndChild();
+                        }
+                        ImGui.EndTabItem();
+                    }
+                    if (ImGui.BeginTabItem("Stream##Tab"))
+                    {
+                        if (ImGui.BeginChild("Blur##SettingsRegion"))
+                        {
+                            DrawStream();
                             ImGui.EndChild();
                         }
                         ImGui.EndTabItem();
@@ -156,6 +166,17 @@ namespace OBSPlugin
                 Config.PartyListBlur = false;
                 Config.Save();
             }
+            try
+            {
+                UpdateTarget();
+            }
+            catch (Exception e)
+            {
+                PluginLog.Error("Error Updating Target UI: {0}", e);
+                Config.TargetBlur = false;
+                Config.TargetTargetBlur = false;
+                Config.Save();
+            }
         }
 
         private unsafe void UpdateChatLog()
@@ -236,6 +257,50 @@ namespace OBSPlugin
             return true;
         }
 
+        private unsafe Blur GetBlurFromNode(AtkResNode* node, string name)
+        {
+            var position = GetNodePosition(node);
+            var scale = GetNodeScale(node);
+            var size = new Vector2(node->Width, node->Height) * scale;
+            var (top, bottom, left, right) = GetUIRect(position.X,
+                position.Y,
+                size.X,
+                size.Y);
+            Blur blur = new(name, top, bottom, left, right, Config.BlurSize);
+            return blur;
+        }
+        private unsafe bool UpdateConfigBlur(Blur blur)
+        {
+            var _blur = Config.BlurList.Find(confBlur => confBlur.Name == blur.Name);
+            if (_blur == null
+                || _blur.Enabled != blur.Enabled
+                || _blur.Top != blur.Top
+                || _blur.Bottom != blur.Bottom
+                || _blur.Left != blur.Left
+                || _blur.Right != blur.Right
+                || _blur.Size != blur.Size)
+            {
+                if (AddOrUpdateBlur(blur))
+                {
+                    if (_blur == null)
+                    {
+                        Config.BlurList.Add(blur);
+                    }
+                    else
+                    {
+                        _blur.Enabled = blur.Enabled;
+                        _blur.Top = blur.Top;
+                        _blur.Bottom = blur.Bottom;
+                        _blur.Left = blur.Left;
+                        _blur.Right = blur.Right;
+                        _blur.Size = blur.Size;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private unsafe void UpdatePartyList()
         {
             if (!Config.PartyListBlur) return;
@@ -257,14 +322,7 @@ namespace OBSPlugin
                         var childChildIsVisible = GetNodeVisible(childChildNode);
                         if (childChildNode != null && childChildNode->Type == NodeType.Text && childChildIsVisible)
                         {
-                            var position = this.GetNodePosition(childChildNode);
-                            var scale = this.GetNodeScale(childChildNode);
-                            var size = new Vector2(childChildNode->Width, childChildNode->Height) * scale;
-                            var (top, bottom, left, right) = GetUIRect(position.X,
-                                position.Y,
-                                size.X,
-                                size.Y);
-                            Blur blur = new($"PartyList_{partyMemberCount}", top, bottom, left, right, Config.BlurSize);
+                            Blur blur = GetBlurFromNode(childChildNode, $"PartyList_{partyMemberCount}");
                             partyMemberBlurList[partyMemberCount] = blur;
                             existingBlur.Add($"PartyList_{partyMemberCount}");
                             partyMemberCount++;
@@ -282,35 +340,71 @@ namespace OBSPlugin
             for (uint i = 0; i < partyMemberCount; i++)
             {
                 var blur = partyMemberBlurList[i];
-                var partyMemberBlur = Config.BlurList.Find(confBlur => confBlur.Name == blur.Name);
-                if (partyMemberBlur == null
-                    || partyMemberBlur.Enabled != blur.Enabled
-                    || partyMemberBlur.Top != blur.Top
-                    || partyMemberBlur.Bottom != blur.Bottom
-                    || partyMemberBlur.Left != blur.Left
-                    || partyMemberBlur.Right != blur.Right
-                    || partyMemberBlur.Size != blur.Size)
-                {
-                    if (AddOrUpdateBlur(blur))
-                    {
-                        if (partyMemberBlur == null)
-                        {
-                            Config.BlurList.Add(blur);
-                        }
-                        else
-                        {
-                            partyMemberBlur.Enabled = blur.Enabled;
-                            partyMemberBlur.Top = blur.Top;
-                            partyMemberBlur.Bottom = blur.Bottom;
-                            partyMemberBlur.Left = blur.Left;
-                            partyMemberBlur.Right = blur.Right;
-                            partyMemberBlur.Size = blur.Size;
-                        }
-                        toSave = true;
-                    }
-                }
-                    
+                toSave |= UpdateConfigBlur(blur);
             }
+            if (toSave) Config.Save();
+        }
+
+
+        private unsafe void UpdateTarget()
+        {
+            if (!Config.TargetBlur && !Config.TargetTargetBlur) return;
+            Blur targetBlur = null;
+            Blur targetTargetBlur = null;
+            uint partyMemberCount = 0;
+            var targetInfoAddress = Plugin.GameGui.GetAddonByName("_TargetInfo", 1);
+            if (targetInfoAddress == IntPtr.Zero) return;
+            var targetInfo = (AtkUnitBase*)targetInfoAddress;
+            int textIndex = 0;
+            for (var i = 0; i < targetInfo->UldManager.NodeListCount; i++)
+            {
+                var childNode = targetInfo->UldManager.NodeList[i];
+                var IsVisible = GetNodeVisible(childNode);
+                if (childNode != null && childNode->Type == NodeType.Text && IsVisible)
+                {
+                    if (textIndex == 1)
+                    {
+                        targetBlur = GetBlurFromNode(childNode, "Target");
+                    } else if (textIndex == 2)
+                    {
+                        targetTargetBlur = GetBlurFromNode(childNode, "TargetTarget");
+                    }
+                    textIndex++;
+                }
+            }
+            bool toSave = false;
+            if (Config.TargetBlur)
+            {
+                if (targetBlur == null)
+                {
+                    Config.BlurList.RemoveAll(blur => {
+                        bool toDel = blur.Name == "Target";
+                        if (toDel) RemoveBlur(blur);
+                        return toDel;
+                    });
+                }
+                else
+                {
+                    toSave |= UpdateConfigBlur(targetBlur);
+                }
+            }
+
+            if (Config.TargetTargetBlur)
+            {
+                if (targetTargetBlur == null)
+                {
+                    Config.BlurList.RemoveAll(blur => {
+                        bool toDel = blur.Name == "TargetTarget";
+                        if (toDel) RemoveBlur(blur);
+                        return toDel;
+                    });
+                }
+                else
+                {
+                    toSave |= UpdateConfigBlur(targetTargetBlur);
+                }
+            }
+                
             if (toSave) Config.Save();
         }
 
@@ -378,11 +472,12 @@ namespace OBSPlugin
                 if (!Config.ChatLogBlur)
                 {
                     var chatLogBlur = Config.BlurList.Find(blur => blur.Name == "ChatLog");
-                    if (chatLogBlur == null)
-                        chatLogBlur = new Blur("ChatLog", 0, 0, 0, 0, Config.BlurSize);
-                    chatLogBlur.Enabled = false;
-                    AddOrUpdateBlur(chatLogBlur);
-                    PluginLog.Debug("Turn off {0}", chatLogBlur.Name);
+                    if (chatLogBlur != null)
+                    {
+                        chatLogBlur.Enabled = false;
+                        AddOrUpdateBlur(chatLogBlur);
+                        PluginLog.Debug("Turn off {0}", chatLogBlur.Name);
+                    }
                 }
                 Config.Save();
             }
@@ -393,11 +488,40 @@ namespace OBSPlugin
                     var partyListBlurs = Config.BlurList.FindAll(blur => blur.Name.StartsWith("PartyList"));
                     for (int i = 0; i < Config.BlurList.Count; i++)
                     {
-                        if (Config.BlurList[i].Name.StartsWith("PartyList")) {
+                        if (Config.BlurList[i].Name.StartsWith("PartyList"))
+                        {
                             Config.BlurList[i].Enabled = false;
                             AddOrUpdateBlur(Config.BlurList[i]);
                             PluginLog.Debug("Turn off {0}", Config.BlurList[i].Name);
                         }
+                    }
+                }
+                Config.Save();
+            }
+            if (ImGui.Checkbox("Target", ref Config.TargetBlur))
+            {
+                if (!Config.TargetBlur)
+                {
+                    var targetBlur = Config.BlurList.Find(blur => blur.Name == "Target");
+                    if (targetBlur != null)
+                    {
+                        targetBlur.Enabled = false;
+                        AddOrUpdateBlur(targetBlur);
+                        PluginLog.Debug("Turn off {0}", targetBlur);
+                    }
+                }
+                Config.Save();
+            }
+            if (ImGui.Checkbox("TargetTarget", ref Config.TargetTargetBlur))
+            {
+                if (!Config.TargetTargetBlur)
+                {
+                    var targetTargetBlur = Config.BlurList.Find(blur => blur.Name == "TargetTarget");
+                    if (targetTargetBlur != null)
+                    {
+                        targetTargetBlur.Enabled = false;
+                        AddOrUpdateBlur(targetTargetBlur);
+                        PluginLog.Debug("Turn off {0}", targetTargetBlur);
                     }
                 }
                 Config.Save();
@@ -469,6 +593,49 @@ namespace OBSPlugin
                     PluginLog.Error(ex, "Could not open OBS-websocket url");
                 }
             }
+        }
+
+        private void DrawStream()
+        {
+            string obsButtonText;
+
+            switch (Plugin.obsStatus)
+            {
+                case OutputState.Starting:
+                    obsButtonText = "Stream starting...";
+                    break;
+
+                case OutputState.Started:
+                    obsButtonText = "Stop streaming";
+                    break;
+
+                case OutputState.Stopping:
+                    obsButtonText = "Stream stopping...";
+                    break;
+
+                case OutputState.Stopped:
+                    obsButtonText = "Start streaming";
+                    break;
+
+                default:
+                    obsButtonText = "State unknown";
+                    break;
+            }
+
+            if (ImGui.Button(obsButtonText))
+            {
+                Plugin.obs.ToggleStreaming();
+            }
+
+            if (Plugin.streamStatus == null) return;
+
+            ImGui.Text($"Stream time : {Plugin.streamStatus.TotalStreamTime} sec");
+            ImGui.Text($"Kbits/sec : {Plugin.streamStatus.KbitsPerSec} kbit/s");
+            ImGui.Text($"Bytes/sec : {Plugin.streamStatus.BytesPerSec} bytes/s");
+            ImGui.Text($"Framerate : {Plugin.streamStatus.BytesPerSec} %");
+            ImGui.Text($"Strain : {Plugin.streamStatus.Strain} FPS");
+            ImGui.Text($"Dropped frames : {Plugin.streamStatus.DroppedFrames}");
+            ImGui.Text($"Total frames : {Plugin.streamStatus.TotalFrames}");
         }
     }
 }
