@@ -1,4 +1,5 @@
 ﻿using System;
+using ImGuiNET;
 using Dalamud.Game;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Command;
@@ -6,54 +7,124 @@ using Dalamud.Game.Gui;
 using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
-using DalamudPluginProjectTemplate.Attributes;
+using Newtonsoft.Json.Linq;
+using OBSPlugin.Attributes;
+using OBSWebsocketDotNet;
+using OBSPlugin.Objects;
 
-namespace DalamudPluginProjectTemplate
+namespace OBSPlugin
 {
     public class Plugin : IDalamudPlugin
     {
         [PluginService]
         [RequiredVersion("1.0")]
-        private DalamudPluginInterface PluginInterface { get; init; }
+        internal DalamudPluginInterface PluginInterface { get; init; }
 
         [PluginService]
         [RequiredVersion("1.0")]
-        private CommandManager Commands { get; init; }
+        internal CommandManager Commands { get; init; }
 
         [PluginService]
         [RequiredVersion("1.0")]
-        private ChatGui Chat { get; init; }
+        internal ChatGui Chat { get; init; }
 
         [PluginService]
         [RequiredVersion("1.0")]
-        private ClientState ClientState { get; init; }
+        internal ClientState ClientState { get; init; }
+        [PluginService]
+        [RequiredVersion("1.0")]
+        internal Framework Framework { get; init; }
 
-        private readonly PluginCommandManager<Plugin> commandManager;
-        private readonly Configuration config;
-        private readonly PluginUI ui;
+        [PluginService]
+        [RequiredVersion("1.0")]
+        internal GameGui GameGui { get; init; }
 
-        public string Name => "Your Plugin's Display Name";
+        internal readonly PluginCommandManager<Plugin> commandManager;
+        internal Configuration config { get; private set; }
+        internal readonly PluginUI ui;
+
+        internal OBSWebsocket obs;
+        internal bool ConnectionFailed = false;
+
+        public string Name => "OBS Plugin";
 
         public Plugin()
         {
+            obs = new OBSWebsocket();
             this.config = (Configuration)PluginInterface.GetPluginConfig() ?? new Configuration();
             this.config.Initialize(PluginInterface);
 
-            this.ui = new PluginUI();
+            this.ui = new PluginUI(this);
+            PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
+            PluginInterface.UiBuilder.DisableAutomaticUiHide = true;
+            PluginInterface.UiBuilder.DisableGposeUiHide = true;
+            PluginInterface.UiBuilder.DisableUserUiHide = true;
             PluginInterface.UiBuilder.Draw += this.ui.Draw;
+            PluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
 
             this.commandManager = new PluginCommandManager<Plugin>(this, Commands);
+
+            if (config.Password.Length > 0)
+            {
+                TryConnect(config.Address, config.Password);
+            }
         }
 
-        [Command("/example1")]
+        private void OpenConfigUi()
+        {
+            this.ui.IsVisible = true;
+        }
+
+        public bool TryConnect(string url, string password)
+        {
+            try
+            {
+                obs.Connect(url, password);
+                PluginLog.Information("Connection established {0}", url);
+                ConnectionFailed = false;
+                return true;
+            }
+            catch (AuthFailureException)
+            {
+                obs.Disconnect();
+                ConnectionFailed = true;
+            }
+            catch (Exception e)
+            {
+                PluginLog.Error("Connection error {0}", e);
+            }
+            return false;
+        }
+
+        [Command("/obs")]
         [HelpMessage("Example help message.")]
-        public void ExampleCommand1(string command, string args)
+        public unsafe void ObsCommand(string command, string args)
         {
             // You may want to assign these references to private variables for convenience.
             // Keep in mind that the local player does not exist until after logging in.
-            var world = ClientState.LocalPlayer?.CurrentWorld.GameData;
-            Chat.Print($"Hello {world?.Name}!");
-            PluginLog.Log("Message sent successfully.");
+            if (args == "" || args == "config")
+            {
+                this.ui.IsVisible = !this.ui.IsVisible;
+            }
+            else if (args == "on")
+            {
+                this.config.Enabled = true;
+                this.config.Save();
+            }
+            else if (args == "off")
+            {
+                this.config.Enabled = false;
+                this.config.Save();
+            }
+            else if (args == "toggle")
+            {
+                this.config.Enabled = !this.config.Enabled;
+                this.config.Save();
+            }
+            else if (args == "update")
+            {
+                this.ui.UpdateGameUI();
+            }
         }
 
         #region IDisposable Support
@@ -66,6 +137,11 @@ namespace DalamudPluginProjectTemplate
             PluginInterface.SavePluginConfig(this.config);
 
             PluginInterface.UiBuilder.Draw -= this.ui.Draw;
+
+            if (obs != null && obs.IsConnected)
+            {
+                obs.Disconnect();
+            }
         }
 
         public void Dispose()

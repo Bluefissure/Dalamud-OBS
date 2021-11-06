@@ -1,6 +1,6 @@
 ﻿using Dalamud.Game.Command;
 using Dalamud.Plugin;
-using DalamudPluginProjectTemplate.Attributes;
+using OBSPlugin.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +8,7 @@ using System.Reflection;
 using static Dalamud.Game.Command.CommandInfo;
 // ReSharper disable ForCanBeConvertedToForeach
 
-namespace DalamudPluginProjectTemplate
+namespace OBSPlugin
 {
     public class PluginCommandManager<THost> : IDisposable
     {
