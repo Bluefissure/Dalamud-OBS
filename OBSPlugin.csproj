@@ -31,31 +31,31 @@
 
 	<ItemGroup>
 	  <Reference Include="Dalamud">
-	    <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\6.0.1.2\Dalamud.dll</HintPath>
+	    <HintPath>..\Dalamud\Dalamud.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="FFXIVClientStructs">
-	    <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\6.0.1.2\FFXIVClientStructs.dll</HintPath>
+	    <HintPath>..\Dalamud\FFXIVClientStructs.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="ImGui.NET">
-	    <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\6.0.1.2\ImGui.NET.dll</HintPath>
+	    <HintPath>..\Dalamud\ImGui.NET.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="ImGuiScene">
-	    <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\6.0.1.2\ImGuiScene.dll</HintPath>
+	    <HintPath>..\Dalamud\ImGuiScene.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="Lumina">
-	    <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\6.0.1.2\Lumina.dll</HintPath>
+	    <HintPath>..\Dalamud\Lumina.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="Lumina.Excel">
-	    <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\6.0.1.2\Lumina.Excel.dll</HintPath>
+	    <HintPath>..\Dalamud\Lumina.Excel.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="Newtonsoft.Json">
-	    <HintPath>C:\Users\z_y_p\AppData\Roaming\XIVLauncher\addon\Hooks\6.0.1.2\Newtonsoft.Json.dll</HintPath>
+	    <HintPath>..\Dalamud\Newtonsoft.Json.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	</ItemGroup>
