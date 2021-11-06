@@ -122,7 +122,7 @@ namespace OBSPlugin
         }
 
         [Command("/obs")]
-        [HelpMessage("Example help message.")]
+        [HelpMessage("Open OBSPlugin config panel.")]
         public unsafe void ObsCommand(string command, string args)
         {
             // You may want to assign these references to private variables for convenience.

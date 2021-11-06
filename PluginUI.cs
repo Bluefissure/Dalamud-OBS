@@ -3,6 +3,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using ImGuiNET;
 using Newtonsoft.Json.Linq;
 using OBSPlugin.Objects;
+using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Types;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,7 @@ namespace OBSPlugin
             Plugin = plugin;
         }
         public Configuration Config => Plugin.config;
+        private int UIErrorCount = 0;
 
         public bool IsVisible { get; set; }
 
@@ -117,9 +119,21 @@ namespace OBSPlugin
                 }
                 Plugin.obs.SetSourceFilterVisibility(sourceName, blur.Name, blur.Enabled);
             }
+            catch (ErrorResponseException e)
+            {
+                if (e.ToString().Contains("specified source doesn't exist"))
+                {
+                    Config.UIDetection = false;
+                    var errMsg = $"Cannot find source \"{Config.SourceName}\", please check.";
+                    PluginLog.Error(errMsg);
+                    Plugin.Chat.PrintError($"[OBSPlugin] {errMsg}");
+                    Config.Save();
+                }
+                return false;
+            }
             catch (Exception e)
             {
-                PluginLog.Error("Failed updating blur: {0}", e); 
+                PluginLog.Error("Failed updating blur: {0}", e);
                 return false;
             }
             PluginLog.Debug("Updated blur: {0}", blur.Name);
@@ -146,6 +160,7 @@ namespace OBSPlugin
         internal unsafe void UpdateGameUI()
         {
             if (!Config.Enabled) return;
+            if (Plugin.ClientState.LocalPlayer == null) return;
             try
             {
                 UpdateChatLog();
@@ -154,6 +169,7 @@ namespace OBSPlugin
             {
                 PluginLog.Error("Error Updating ChatLog UI: {0}", e);
                 Config.ChatLogBlur = false;
+                UIErrorCount++;
                 Config.Save();
             }
             try
@@ -164,6 +180,7 @@ namespace OBSPlugin
             {
                 PluginLog.Error("Error Updating PartyList UI: {0}", e);
                 Config.PartyListBlur = false;
+                UIErrorCount++;
                 Config.Save();
             }
             try
@@ -175,6 +192,16 @@ namespace OBSPlugin
                 PluginLog.Error("Error Updating Target UI: {0}", e);
                 Config.TargetBlur = false;
                 Config.TargetTargetBlur = false;
+                UIErrorCount++;
+                Config.Save();
+            }
+            if (UIErrorCount > 1000)
+            {
+                var errMsg = "More than 1000 UI errors encountered, UI detection is turned off. " +
+                    "Please open /xllog for more details.";
+                PluginLog.Error(errMsg);
+                Plugin.Chat.PrintError($"[OBSPlugin] {errMsg}");
+                Config.UIDetection = false;
                 Config.Save();
             }
         }
@@ -447,6 +474,7 @@ namespace OBSPlugin
         {
             if (ImGui.Checkbox("UI Detection", ref Config.UIDetection))
             {
+                UIErrorCount = 0;
                 Config.Save();
             }
             if (ImGui.IsItemHovered())
