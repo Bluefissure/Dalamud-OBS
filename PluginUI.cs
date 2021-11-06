@@ -29,9 +29,11 @@ namespace OBSPlugin
             if (!IsVisible)
                 return;
 
-            ImGui.SetNextWindowSize(new Vector2(530, 450));
-            if (ImGui.Begin("OBS Plugin Config"))
+            ImGui.SetNextWindowSize(new Vector2(530, 450), ImGuiCond.FirstUseEver);
+            bool configOpen = IsVisible;
+            if (ImGui.Begin("OBS Plugin Config", ref configOpen))
             {
+                IsVisible = configOpen;
                 if (ImGui.BeginTabBar("TabBar"))
                 {
                     if (ImGui.BeginTabItem("Connection##Tab"))
@@ -233,6 +235,7 @@ namespace OBSPlugin
 
             return true;
         }
+
         private unsafe void UpdatePartyList()
         {
             if (!Config.PartyListBlur) return;
@@ -245,13 +248,13 @@ namespace OBSPlugin
             for (var i = 0; i < partyList->UldManager.NodeListCount; i++)
             {
                 var childNode = partyList->UldManager.NodeList[i];
-                var IsVisible = (childNode->Flags & 0x10) == 0x10;
+                var IsVisible = GetNodeVisible(childNode);
                 if (childNode != null && (int)childNode->Type == 1006 && IsVisible)
                 {
                     for (var j = 0; j < childNode->GetAsAtkComponentNode()->Component->UldManager.NodeListCount; j++)
                     {
                         var childChildNode = childNode->GetAsAtkComponentNode()->Component->UldManager.NodeList[j];
-                        var childChildIsVisible = (childChildNode->Flags & 0x10) == 0x10;
+                        var childChildIsVisible = GetNodeVisible(childChildNode);
                         if (childChildNode != null && childChildNode->Type == NodeType.Text && childChildIsVisible)
                         {
                             var position = this.GetNodePosition(childChildNode);
