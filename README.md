@@ -8,4 +8,4 @@ You need to install two plugins:
 - [StreamFX](https://github.com/Xaymar/obs-StreamFX/releases/latest): for the blur function.
 
 ## Installation
-TODO
+Add `https://raw.githubusercontent.com/Bluefissure/Dalamud-OBS/master/repo.json` as a third-party repo in Dalamud settings.
