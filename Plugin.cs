@@ -45,6 +45,7 @@ namespace OBSPlugin
         internal readonly PluginUI ui;
 
         internal OBSWebsocket obs;
+        internal bool Connected = false;
         internal bool ConnectionFailed = false;
         internal StreamStatus streamStatus;
         internal OutputState obsStatus = OutputState.Stopped;
@@ -55,6 +56,7 @@ namespace OBSPlugin
         {
             obs = new OBSWebsocket();
             obs.Connected += onConnect;
+            obs.Disconnected += onDisconnect;
             obs.StreamStatus += onStreamData;
             obs.StreamingStateChanged += onStreamingStateChange;
 
@@ -87,7 +89,6 @@ namespace OBSPlugin
             try
             {
                 obs.Connect(url, password);
-                PluginLog.Information("Connection established {0}", url);
                 ConnectionFailed = false;
                 return true;
             }
@@ -104,11 +105,18 @@ namespace OBSPlugin
         }
         private void onConnect(object sender, EventArgs e)
         {
+            Connected = true;
+            PluginLog.Information("OBS connected: {0}", config.Address);
             var streamStatus = obs.GetStreamingStatus();
             if (streamStatus.IsStreaming)
                 onStreamingStateChange(obs, OutputState.Started);
             else
                 onStreamingStateChange(obs, OutputState.Stopped);
+        }
+        private void onDisconnect(object sender, EventArgs e)
+        {
+            PluginLog.Information("OBS disconnected: {0}", config.Address);
+            Connected = false;
         }
 
         private void onStreamData(OBSWebsocket sender, StreamStatus data)

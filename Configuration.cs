@@ -20,10 +20,14 @@ namespace OBSPlugin
         public string Address = "ws://127.0.0.1:4444/";
         public string Password = "";
         public int BlurSize = 25;
+        public bool DrawBlurRect = false;
         public bool ChatLogBlur = true;
         public bool PartyListBlur = true;
         public bool TargetBlur = false;
         public bool TargetTargetBlur = true;
+        public bool FocusTargetBlur = false;
+        public bool NamePlateBlur = false;
+        public int MaxNamePlateCount = 1;
         public List<Blur> BlurList = new();
 
         public void Initialize(DalamudPluginInterface pluginInterface)
