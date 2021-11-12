@@ -11,21 +11,83 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 using System.Linq;
+using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace OBSPlugin
 {
     public class PluginUI
     {
         private readonly Plugin Plugin;
-        public PluginUI(Plugin plugin)
-        {
-            Plugin = plugin;
-        }
+        private bool isThreadRunning = true;
+        internal BlockingCollection<Blur> BlurItemsToAdd = new BlockingCollection<Blur>(10000);
+        internal BlockingCollection<Blur> BlurItemsToRemove = new BlockingCollection<Blur>(10000);
+        public Dictionary<string, Blur> BlurDict = new();
         public Configuration Config => Plugin.config;
         private int UIErrorCount = 0;
         Blur[] PartyMemberBlurList = new Blur[8];
 
         public bool IsVisible { get; set; }
+        public PluginUI(Plugin plugin)
+        {
+            Plugin = plugin;
+            InitAddConsuming();
+            InitRemoveConsuming();
+        }
+
+        private void InitAddConsuming()
+        {
+            Task.Run(() =>
+            {
+                while (!BlurItemsToAdd.IsCompleted && isThreadRunning)
+                {
+                    Blur blur = null;
+                    try
+                    {
+                        blur = BlurItemsToAdd.Take();
+                    }
+                    catch (InvalidOperationException) { }
+
+                    if (blur != null)
+                    {
+                        if (BlurDict.TryGetValue(blur.Name, out Blur latestBlur))
+                        {
+                            if (blur.LastEdit.CompareTo(latestBlur.LastEdit) < 0)
+                            {
+                                // var dateDelta = latestBlur.LastEdit - blur.LastEdit;
+                                // PluginLog.Debug($"Skipping {blur.Name} {dateDelta}");
+                                continue;
+                            }
+
+                        }
+                        OBSAddOrUpdateBlur(blur);
+                    }
+                }
+                PluginLog.Information("No more OBS blurs to add.");
+            });
+
+        }
+        private void InitRemoveConsuming()
+        {
+            Task.Run(() =>
+            {
+                while (!BlurItemsToRemove.IsCompleted && isThreadRunning)
+                {
+                    Blur blur = null;
+                    try
+                    {
+                        blur = BlurItemsToRemove.Take();
+                    }
+                    catch (InvalidOperationException) { }
+
+                    if (blur != null)
+                    {
+                        OBSRemoveBlur(blur);
+                    }
+                }
+                PluginLog.Information("No more OBS blurs to add.");
+            });
+        }
 
         public void Draw()
         {
@@ -97,9 +159,9 @@ namespace OBSPlugin
             return (top, bottom, left, right);
         }
 
-        private bool AddOrUpdateBlur(Blur blur)
+        private bool OBSAddOrUpdateBlur(Blur blur)
         {
-            if (!Plugin.obs.IsConnected) return false;
+            if (!Plugin.Connected) return false;
             string sourceName = Config.SourceName;
             try
             {
@@ -128,10 +190,7 @@ namespace OBSPlugin
                 {
                     Plugin.obs.SetSourceFilterSettings(sourceName, blur.Name, settings);
                 }
-                if (!created && filter != null && blur.Enabled != filter.IsEnabled)
-                {
-                    Plugin.obs.SetSourceFilterVisibility(sourceName, blur.Name, blur.Enabled);
-                }
+                Plugin.obs.SetSourceFilterVisibility(sourceName, blur.Name, blur.Enabled);
             }
             catch (ErrorResponseException e)
             {
@@ -154,10 +213,10 @@ namespace OBSPlugin
             return true;
         }
 
-        private bool RemoveBlur(Blur blur)
+        private bool OBSRemoveBlur(Blur blur)
         {
-            if (!Plugin.obs.IsConnected) return false;
-            bool removed = false;
+            if (!Plugin.Connected) return false;
+            bool removed;
             try
             {
                 removed = Plugin.obs.RemoveFilterFromSource(Config.SourceName, blur.Name);
@@ -169,6 +228,29 @@ namespace OBSPlugin
                 return false;
             }
             return removed;
+        }
+
+        private bool OBSRemoveBlurs(string blurNamePrefix)
+        {
+            if (!Plugin.Connected) return false;
+            try
+            {
+                var filters = Plugin.obs.GetSourceFilters(Config.SourceName);
+                foreach (var filter in filters)
+                {
+                    if (filter.Name.StartsWith(blurNamePrefix))
+                    {
+                        Plugin.obs.RemoveFilterFromSource(Config.SourceName, filter.Name);
+                    }
+                }
+                PluginLog.Debug("Deleted all blurs starting with {0}", blurNamePrefix);
+            }
+            catch (Exception e)
+            {
+                PluginLog.Error("Failed deleting blurs: {0}", e);
+                return false;
+            }
+            return true;
         }
 
         internal unsafe void UpdateGameUI()
@@ -305,9 +387,10 @@ namespace OBSPlugin
             var scale = GetNodeScale(node);
             var nodeVisible = GetNodeVisible(node);
             var size = new Vector2(node->Width, node->Height) * scale;
+            Blur existingBlur = null;
             if (Config.DrawBlurRect && nodeVisible
-                && Config.BlurList.Find(blur => blur.Name == name) != null
-                && Config.BlurList.Find(blur => blur.Name == name).Enabled)
+                && BlurDict.TryGetValue(name, out existingBlur)
+                && existingBlur.Enabled)
                 ImGui.GetForegroundDrawList(ImGui.GetMainViewport()).AddRect(position, position + size, 0xFFFF0000);
             var (top, bottom, left, right) = GetUIRect(position.X,
                 position.Y,
@@ -317,36 +400,22 @@ namespace OBSPlugin
             blur.Enabled = nodeVisible;
             return blur;
         }
-        private unsafe bool UpdateConfigBlur(Blur blur)
+
+        private unsafe void UpdateBlur(Blur blur)
         {
-            var _blur = Config.BlurList.Find(confBlur => confBlur.Name == blur.Name);
-            if (_blur == null
-                || _blur.Enabled != blur.Enabled
-                || _blur.Top != blur.Top
-                || _blur.Bottom != blur.Bottom
-                || _blur.Left != blur.Left
-                || _blur.Right != blur.Right
-                || _blur.Size != blur.Size)
+            blur.LastEdit = DateTime.Now;
+            if (BlurDict.TryGetValue(blur.Name, out Blur existingBlur))
             {
-                if (AddOrUpdateBlur(blur))
+                if (!blur.Equals(existingBlur))
                 {
-                    if (_blur == null)
-                    {
-                        Config.BlurList.Add(blur);
-                    }
-                    else
-                    {
-                        _blur.Enabled = blur.Enabled;
-                        _blur.Top = blur.Top;
-                        _blur.Bottom = blur.Bottom;
-                        _blur.Left = blur.Left;
-                        _blur.Right = blur.Right;
-                        _blur.Size = blur.Size;
-                    }
-                    return true;
+                    BlurDict[blur.Name] = blur;
+                    BlurItemsToAdd.Add((Blur)blur.Clone());
                 }
+            } else
+            {
+                BlurDict[blur.Name] = blur;
+                BlurItemsToAdd.Add((Blur)blur.Clone());
             }
-            return false;
         }
 
         private unsafe void UpdateChatLog()
@@ -354,15 +423,10 @@ namespace OBSPlugin
             if (!Config.ChatLogBlur) return;
             var chatLogAddress = Plugin.GameGui.GetAddonByName("ChatLog", 1);
             if (chatLogAddress == IntPtr.Zero) return;
-            bool created = false;
             var chatLog = (AtkUnitBase*)chatLogAddress;
             if (chatLog->UldManager.NodeListCount <= 0) return;
             var chatLogNode = chatLog->UldManager.NodeList[0];
-            Blur blur = GetBlurFromNode(chatLogNode, "ChatLog");
-            if (UpdateConfigBlur(blur))
-            {
-                Config.Save();
-            }
+            UpdateBlur(GetBlurFromNode(chatLogNode, "ChatLog"));
         }
 
         private unsafe void UpdatePartyList()
@@ -394,18 +458,19 @@ namespace OBSPlugin
                     }
                 }
             }
-            Config.BlurList.RemoveAll(blur => {
-                bool toDel = blur.Name.StartsWith("PartyList") && !existingBlur.Contains(blur.Name);
-                if (toDel) RemoveBlur(blur);
-                return toDel;
-            });
-            bool toSave = false;
-            for (uint i = 0; i < partyMemberCount; i++)
+            var blursToRemove = BlurDict.Values.Where(blur => blur.Name.StartsWith("PartyList") && !existingBlur.Contains(blur.Name));
+            if (blursToRemove.Any())
             {
-                var blur = PartyMemberBlurList[i];
-                toSave |= UpdateConfigBlur(blur);
+                blursToRemove.ToList().ForEach(blur =>
+                {
+                    BlurItemsToRemove.Add(blur);
+                    BlurDict.Remove(blur.Name);
+                });
             }
-            if (toSave) Config.Save();
+            for (int i = 0; i < partyMemberCount; i++)
+            {
+                UpdateBlur(PartyMemberBlurList[i]);
+            }
         }
 
         private unsafe void UpdateNamePlate()
@@ -437,16 +502,19 @@ namespace OBSPlugin
                 ).Take(Config.MaxNamePlateCount);
             foreach (KeyValuePair<string, Blur> pair in namePlateBlurList)
             {
-                UpdateConfigBlur(pair.Value);
+                UpdateBlur(pair.Value);
                 existingBlur.Add(pair.Value.Name);
             }
-            Config.BlurList.RemoveAll(blur => {
-                bool toDel = blur.Name.StartsWith("NamePlate") && !existingBlur.Contains(blur.Name);
-                if (toDel) RemoveBlur(blur);
-                return toDel;
-            });
 
-            Config.Save();
+            var blursToRemove = BlurDict.Values.Where(blur => blur.Name.StartsWith("NamePlate") && !existingBlur.Contains(blur.Name));
+            if (blursToRemove.Any())
+            {
+                blursToRemove.ToList().ForEach(blur =>
+                {
+                    BlurItemsToRemove.Add(blur);
+                    BlurDict.Remove(blur.Name);
+                });
+            }
         }
 
 
@@ -459,6 +527,11 @@ namespace OBSPlugin
             var targetInfoAddress = Plugin.GameGui.GetAddonByName("_TargetInfo", 1);
             if (targetInfoAddress == IntPtr.Zero) return;
             var targetInfo = (AtkUnitBase*)targetInfoAddress;
+            if (!GetNodeVisible(targetInfo->UldManager.NodeList[0]))
+            {
+                targetInfoAddress = Plugin.GameGui.GetAddonByName("_TargetInfoMainTarget", 1);
+                targetInfo = (AtkUnitBase*)targetInfoAddress;
+            }
             int textIndex = 0;
             for (var i = 0; i < targetInfo->UldManager.NodeListCount; i++)
             {
@@ -476,20 +549,19 @@ namespace OBSPlugin
                     textIndex++;
                 }
             }
-            bool toSave = false;
             if (Config.TargetBlur)
             {
                 if (targetBlur == null)
                 {
-                    Config.BlurList.RemoveAll(blur => {
-                        bool toDel = blur.Name == "Target";
-                        if (toDel) RemoveBlur(blur);
-                        return toDel;
-                    });
+                    if (BlurDict.TryGetValue("Target", out Blur blurToRemove))
+                    {
+                        BlurItemsToRemove.Add(blurToRemove);
+                        BlurDict.Remove(blurToRemove.Name);
+                    }
                 }
                 else
                 {
-                    toSave |= UpdateConfigBlur(targetBlur);
+                    UpdateBlur(targetBlur);
                 }
             }
 
@@ -497,19 +569,17 @@ namespace OBSPlugin
             {
                 if (targetTargetBlur == null)
                 {
-                    Config.BlurList.RemoveAll(blur => {
-                        bool toDel = blur.Name == "TargetTarget";
-                        if (toDel) RemoveBlur(blur);
-                        return toDel;
-                    });
+                    if (BlurDict.TryGetValue("TargetTarget", out Blur blurToRemove))
+                    {
+                        BlurItemsToRemove.Add(blurToRemove);
+                        BlurDict.Remove(blurToRemove.Name);
+                    }
                 }
                 else
                 {
-                    toSave |= UpdateConfigBlur(targetTargetBlur);
+                    UpdateBlur(targetTargetBlur);
                 }
             }
-                
-            if (toSave) Config.Save();
         }
 
         private unsafe void UpdateFocusTarget()
@@ -531,18 +601,16 @@ namespace OBSPlugin
             }
             if (focusTargetBlur == null)
             {
-                Config.BlurList.RemoveAll(blur => {
-                    bool toDel = blur.Name == "FocusTarget";
-                    if (toDel) RemoveBlur(blur);
-                    return toDel;
-                });
+                if (BlurDict.TryGetValue("FocusTarget", out Blur blurToRemove))
+                {
+                    BlurItemsToRemove.Add(blurToRemove);
+                    BlurDict.Remove(blurToRemove.Name);
+                }
             }
             else
             {
-                UpdateConfigBlur(focusTargetBlur);
+                UpdateBlur(focusTargetBlur);
             }
-
-            Config.Save();
         }
 
         private void DrawConnectionSettings()
@@ -601,10 +669,10 @@ namespace OBSPlugin
             }
             if (ImGui.DragInt("Blur Size", ref Config.BlurSize, 1, 1, 128))
             {
-                foreach (var blur in Config.BlurList)
+                foreach (var blur in BlurDict.Values)
                 {
                     blur.Size = Config.BlurSize;
-                    AddOrUpdateBlur(blur);
+                    BlurItemsToAdd.Add((Blur)blur.Clone());
                 }
                 Config.Save();
             }
@@ -613,12 +681,12 @@ namespace OBSPlugin
             {
                 if (!Config.ChatLogBlur)
                 {
-                    var chatLogBlur = Config.BlurList.Find(blur => blur.Name == "ChatLog");
-                    if (chatLogBlur != null)
+                    Blur chatLogBlur = null;
+                    if (BlurDict.TryGetValue("ChatLog", out chatLogBlur))
                     {
                         chatLogBlur.Enabled = false;
-                        AddOrUpdateBlur(chatLogBlur);
                         PluginLog.Debug("Turn off {0}", chatLogBlur.Name);
+                        BlurItemsToAdd.Add((Blur)chatLogBlur.Clone());
                     }
                 }
                 Config.Save();
@@ -627,15 +695,12 @@ namespace OBSPlugin
             {
                 if (!Config.PartyListBlur)
                 {
-                    var partyListBlurs = Config.BlurList.FindAll(blur => blur.Name.StartsWith("PartyList"));
-                    for (int i = 0; i < Config.BlurList.Count; i++)
+                    var blursToTurnOff = BlurDict.Values.Where(blur => blur.Name.StartsWith("PartyList"));
+                    foreach (Blur blur in blursToTurnOff)
                     {
-                        if (Config.BlurList[i].Name.StartsWith("PartyList"))
-                        {
-                            Config.BlurList[i].Enabled = false;
-                            AddOrUpdateBlur(Config.BlurList[i]);
-                            PluginLog.Debug("Turn off {0}", Config.BlurList[i].Name);
-                        }
+                        blur.Enabled = false;
+                        PluginLog.Debug("Turn off {0}", blur.Name);
+                        BlurItemsToAdd.Add((Blur)blur.Clone());
                     }
                 }
                 Config.Save();
@@ -644,12 +709,12 @@ namespace OBSPlugin
             {
                 if (!Config.TargetBlur)
                 {
-                    var targetBlur = Config.BlurList.Find(blur => blur.Name == "Target");
-                    if (targetBlur != null)
+                    Blur targetBlur = null;
+                    if (BlurDict.TryGetValue("Target", out targetBlur))
                     {
                         targetBlur.Enabled = false;
-                        AddOrUpdateBlur(targetBlur);
-                        PluginLog.Debug("Turn off {0}", targetBlur);
+                        PluginLog.Debug("Turn off {0}", targetBlur.Name);
+                        BlurItemsToAdd.Add((Blur)targetBlur.Clone());
                     }
                 }
                 Config.Save();
@@ -659,12 +724,12 @@ namespace OBSPlugin
             {
                 if (!Config.TargetTargetBlur)
                 {
-                    var targetTargetBlur = Config.BlurList.Find(blur => blur.Name == "TargetTarget");
-                    if (targetTargetBlur != null)
+                    Blur targetTargetBlur = null;
+                    if (BlurDict.TryGetValue("TargetTarget", out targetTargetBlur))
                     {
                         targetTargetBlur.Enabled = false;
-                        AddOrUpdateBlur(targetTargetBlur);
-                        PluginLog.Debug("Turn off {0}", targetTargetBlur);
+                        PluginLog.Debug("Turn off {0}", targetTargetBlur.Name);
+                        BlurItemsToAdd.Add((Blur)targetTargetBlur.Clone());
                     }
                 }
                 Config.Save();
@@ -674,31 +739,22 @@ namespace OBSPlugin
             {
                 if (!Config.FocusTargetBlur)
                 {
-                    var focusTargetBlur = Config.BlurList.Find(blur => blur.Name == "FocusTarget");
-                    if (focusTargetBlur != null)
+                    Blur focusTargetBlur = null;
+                    if (BlurDict.TryGetValue("FocusTarget", out focusTargetBlur))
                     {
                         focusTargetBlur.Enabled = false;
-                        AddOrUpdateBlur(focusTargetBlur);
-                        PluginLog.Debug("Turn off {0}", focusTargetBlur);
+                        PluginLog.Debug("Turn off {0}", focusTargetBlur.Name);
+                        BlurItemsToAdd.Add((Blur)focusTargetBlur.Clone());
                     }
                 }
                 Config.Save();
             }
-
+            /*
             if (ImGui.Checkbox("NamePlate", ref Config.NamePlateBlur))
             {
                 if (!Config.NamePlateBlur)
                 {
-                    var namePlateBlurs = Config.BlurList.FindAll(blur => blur.Name.StartsWith("NamePlate"));
-                    for (int i = 0; i < Config.BlurList.Count; i++)
-                    {
-                        if (Config.BlurList[i].Name.StartsWith("NamePlate"))
-                        {
-                            Config.BlurList[i].Enabled = false;
-                            AddOrUpdateBlur(Config.BlurList[i]);
-                            PluginLog.Debug("Turn off {0}", Config.BlurList[i].Name);
-                        }
-                    }
+                    OBSRemoveBlurs("NamePlate");
                 }
                 Config.Save();
             }
@@ -713,6 +769,11 @@ namespace OBSPlugin
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Max number of nameplates to be blurred, sorted by the distance to the center.");
+            */
+            ImGui.Separator();
+
+            ImGui.Text($"Current #BlurItemsToAdd: {BlurItemsToAdd.Count}");
+            ImGui.Text($"Current #BlurItemsToRemove: {BlurItemsToRemove.Count}");
 
         }
 
@@ -811,6 +872,7 @@ namespace OBSPlugin
 
             if (ImGui.Button(obsButtonText))
             {
+                if (!Plugin.Connected) return;
                 try
                 {
                     Plugin.obs.ToggleStreaming();
@@ -832,5 +894,11 @@ namespace OBSPlugin
             ImGui.Text($"Dropped frames : {Plugin.streamStatus.DroppedFrames}");
             ImGui.Text($"Total frames : {Plugin.streamStatus.TotalFrames}");
         }
+    
+        internal void Dispose()
+        {
+            isThreadRunning = false;
+        }
+    
     }
 }

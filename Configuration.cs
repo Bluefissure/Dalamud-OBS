@@ -28,7 +28,6 @@ namespace OBSPlugin
         public bool FocusTargetBlur = false;
         public bool NamePlateBlur = false;
         public int MaxNamePlateCount = 1;
-        public List<Blur> BlurList = new();
 
         public void Initialize(DalamudPluginInterface pluginInterface)
         {

@@ -167,6 +167,8 @@ namespace OBSPlugin
 
             this.commandManager.Dispose();
 
+            this.ui.Dispose();
+
             PluginInterface.SavePluginConfig(this.config);
 
             PluginInterface.UiBuilder.Draw -= this.ui.Draw;
