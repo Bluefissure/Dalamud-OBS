@@ -13,6 +13,8 @@ using System.Numerics;
 using System.Linq;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using Lumina.Excel.GeneratedSheets;
+using System.IO;
 
 namespace OBSPlugin
 {
@@ -20,8 +22,8 @@ namespace OBSPlugin
     {
         private readonly Plugin Plugin;
         private bool isThreadRunning = true;
-        internal BlockingCollection<Blur> BlurItemsToAdd = new BlockingCollection<Blur>(10000);
-        internal BlockingCollection<Blur> BlurItemsToRemove = new BlockingCollection<Blur>(10000);
+        internal BlockingCollection<Blur> BlurItemsToAdd = new (10000);
+        internal BlockingCollection<Blur> BlurItemsToRemove = new (10000);
         public Dictionary<string, Blur> BlurDict = new();
         public Configuration Config => Plugin.config;
         private int UIErrorCount = 0;
@@ -54,8 +56,6 @@ namespace OBSPlugin
                         {
                             if (blur.LastEdit.CompareTo(latestBlur.LastEdit) < 0)
                             {
-                                // var dateDelta = latestBlur.LastEdit - blur.LastEdit;
-                                // PluginLog.Debug($"Skipping {blur.Name} {dateDelta}");
                                 continue;
                             }
 
@@ -91,6 +91,8 @@ namespace OBSPlugin
 
         public void Draw()
         {
+            Plugin.stopWatchHook?.Update();
+
             if (Config.UIDetection)
                 UpdateGameUI();
 
@@ -115,9 +117,18 @@ namespace OBSPlugin
                     }
                     if (ImGui.BeginTabItem("Stream##Tab"))
                     {
-                        if (ImGui.BeginChild("Blur##SettingsRegion"))
+                        if (ImGui.BeginChild("Stream##SettingsRegion"))
                         {
                             DrawStream();
+                            ImGui.EndChild();
+                        }
+                        ImGui.EndTabItem();
+                    }
+                    if (ImGui.BeginTabItem("Record##Tab"))
+                    {
+                        if (ImGui.BeginChild("Record##SettingsRegion"))
+                        {
+                            DrawRecord();
                             ImGui.EndChild();
                         }
                         ImGui.EndTabItem();
@@ -162,6 +173,7 @@ namespace OBSPlugin
         private bool OBSAddOrUpdateBlur(Blur blur)
         {
             if (!Plugin.Connected) return false;
+
             string sourceName = Config.SourceName;
             try
             {
@@ -182,6 +194,7 @@ namespace OBSPlugin
                 settings["Filter.Blur.Mask.Region.Left"] = blur.Left;
                 settings["Filter.Blur.Mask.Region.Right"] = blur.Right;
                 settings["Filter.Blur.Mask.Type"] = 0;
+                settings["Filter.Blur.Type"] = "dual_filtering";
                 settings["Filter.Blur.Size"] = blur.Size;
                 if (created)
                 {
@@ -387,9 +400,8 @@ namespace OBSPlugin
             var scale = GetNodeScale(node);
             var nodeVisible = GetNodeVisible(node);
             var size = new Vector2(node->Width, node->Height) * scale;
-            Blur existingBlur = null;
             if (Config.DrawBlurRect && nodeVisible
-                && BlurDict.TryGetValue(name, out existingBlur)
+                && BlurDict.TryGetValue(name, out Blur existingBlur)
                 && existingBlur.Enabled)
                 ImGui.GetForegroundDrawList(ImGui.GetMainViewport()).AddRect(position, position + size, 0xFFFF0000);
             var (top, bottom, left, right) = GetUIRect(position.X,
@@ -409,7 +421,13 @@ namespace OBSPlugin
                 if (!blur.Equals(existingBlur))
                 {
                     BlurDict[blur.Name] = blur;
-                    BlurItemsToAdd.Add((Blur)blur.Clone());
+                    if (Config.BlurAsync)
+                    {
+                        BlurItemsToAdd.Add(blur);
+                    } else
+                    {
+                        OBSAddOrUpdateBlur(blur);
+                    }
                 }
             } else
             {
@@ -443,17 +461,21 @@ namespace OBSPlugin
                 var IsVisible = GetNodeVisible(childNode);
                 if (childNode != null && (int)childNode->Type == 1006 && IsVisible)
                 {
+                    int textCount = 0;
                     for (var j = 0; j < childNode->GetAsAtkComponentNode()->Component->UldManager.NodeListCount; j++)
                     {
                         var childChildNode = childNode->GetAsAtkComponentNode()->Component->UldManager.NodeList[j];
                         var childChildIsVisible = GetNodeVisible(childChildNode);
-                        if (childChildNode != null && childChildNode->Type == NodeType.Text && childChildIsVisible)
+                        if (childChildNode != null && childChildNode->Type == NodeType.Text )
                         {
-                            Blur blur = GetBlurFromNode(childChildNode, $"PartyList_{partyMemberCount}");
-                            PartyMemberBlurList[partyMemberCount] = blur;
-                            existingBlur.Add($"PartyList_{partyMemberCount}");
-                            partyMemberCount++;
-                            break;
+                            if (textCount == 1 && childChildIsVisible)
+                            {
+                                PartyMemberBlurList[partyMemberCount] = GetBlurFromNode(childChildNode, $"PartyList_{partyMemberCount}");
+                                existingBlur.Add($"PartyList_{partyMemberCount}");
+                                partyMemberCount++;
+                                break;
+                            }
+                            textCount++;
                         }
                     }
                 }
@@ -621,7 +643,7 @@ namespace OBSPlugin
             }
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
             ImGui.TextColored(Plugin.Connected ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
-                Plugin.obs.IsConnected ? "Connected" : "Disconnected");
+                Plugin.Connected ? "Connected" : "Disconnected");
             if (ImGui.InputText("Server Address", ref Config.Address, 128))
             {
                 Config.Save();
@@ -630,10 +652,10 @@ namespace OBSPlugin
             {
                 Config.Save();
             }
-            string connectionButtonText = Plugin.obs.IsConnected ? "Disconnect" : "Connect";
+            string connectionButtonText = Plugin.Connected ? "Disconnect" : "Connect";
             if (ImGui.Button(connectionButtonText))
             {
-                if (Plugin.obs.IsConnected)
+                if (Plugin.Connected)
                 {
                     Plugin.obs.Disconnect();
                 } else
@@ -659,15 +681,24 @@ namespace OBSPlugin
                 ImGui.SetTooltip("Detect game UI elements together with game-rendering.\n" +
                     "May cause performance issues.\n" +
                     "If disabled, you need to manually call \"/obs update\" to update the blurs in obs.");
+            if (ImGui.Checkbox("Asynchronous Update", ref Config.BlurAsync))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Asynchronizly update the blur filters in obs.\n" +
+                    "Asynchronizly update will cause slight delays in updating the filters but has a better performance.");
             if (ImGui.Checkbox("Draw Blur Rect", ref Config.DrawBlurRect))
             {
                 Config.Save();
             }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Draw the blurred content with a vkye boundary.");
             if (ImGui.InputText("Source Name", ref Config.SourceName, 128))
             {
                 Config.Save();
             }
-            if (ImGui.DragInt("Blur Size", ref Config.BlurSize, 1, 1, 128))
+            if (ImGui.DragInt("Blur Size", ref Config.BlurSize, 1, 1, 16))
             {
                 foreach (var blur in BlurDict.Values)
                 {
@@ -770,16 +801,18 @@ namespace OBSPlugin
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Max number of nameplates to be blurred, sorted by the distance to the center.");
             */
-            ImGui.Separator();
-
-            ImGui.Text($"Current #BlurItemsToAdd: {BlurItemsToAdd.Count}");
-            ImGui.Text($"Current #BlurItemsToRemove: {BlurItemsToRemove.Count}");
+            if (Config.BlurAsync)
+            {
+                ImGui.Separator();
+                ImGui.Text($"Current #BlurItemsToAdd: {BlurItemsToAdd.Count}");
+                ImGui.Text($"Current #BlurItemsToRemove: {BlurItemsToRemove.Count}");
+            }
 
         }
 
         private void DrawAbout()
         {
-            ImGui.Text("This plugin is still WIP, lot of functions are still in development.");
+            // ImGui.Text("This plugin is still WIP, lot of functions are still in development.");
 
             ImGui.Text("You need to install two plugins in your OBS for this plugin to work:");
 
@@ -847,7 +880,7 @@ namespace OBSPlugin
         {
             string obsButtonText;
 
-            switch (Plugin.obsStatus)
+            switch (Plugin.obsStreamStatus)
             {
                 case OutputState.Starting:
                     obsButtonText = "Stream starting...";
@@ -884,6 +917,10 @@ namespace OBSPlugin
                 }
             }
 
+            ImGui.SameLine(ImGui.GetColumnWidth() - 80);
+            ImGui.TextColored(Plugin.obsStreamStatus == OutputState.Started ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
+                Plugin.obsStreamStatus == OutputState.Started ? "Streaming" : "Stopped");
+
             if (Plugin.streamStatus == null) return;
 
             ImGui.Text($"Stream time : {Plugin.streamStatus.TotalStreamTime} sec");
@@ -894,9 +931,131 @@ namespace OBSPlugin
             ImGui.Text($"Dropped frames : {Plugin.streamStatus.DroppedFrames}");
             ImGui.Text($"Total frames : {Plugin.streamStatus.TotalFrames}");
         }
-    
+
+        internal void SetRecordingDir()
+        {
+            if(Config.RecordDir == null || Config.RecordDir.Length == 0) return;
+            if(Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
+
+            var curDir = Config.RecordDir;
+            if (Config.IncludeTerritory && Plugin.obsRecordStatus == OutputState.Stopped)
+            {
+                var terriIdx = Plugin.ClientState.TerritoryType;
+                var terriName = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx).Map.Value.PlaceName.Value.Name;
+                curDir = Path.Combine(curDir, terriName);
+            }
+            
+            Plugin.obs.SetRecordingFolder(curDir);
+        }
+
+        private void DrawRecord()
+        {
+
+            string obsButtonText;
+
+            switch (Plugin.obsRecordStatus)
+            {
+                case OutputState.Starting:
+                    obsButtonText = "Record starting...";
+                    break;
+
+                case OutputState.Started:
+                    obsButtonText = "Stop recording";
+                    break;
+
+                case OutputState.Stopping:
+                    obsButtonText = "Record stopping...";
+                    break;
+
+                case OutputState.Stopped:
+                    obsButtonText = "Start recording";
+                    break;
+
+                default:
+                    obsButtonText = "State unknown";
+                    break;
+            }
+
+            if (ImGui.Button(obsButtonText))
+            {
+                if (!Plugin.Connected) return;
+                try
+                {
+                    SetRecordingDir();
+                    Plugin.obs.ToggleRecording();
+                }
+                catch (Exception e)
+                {
+                    PluginLog.Error("Error on toggle recording: {0}", e);
+                    Plugin.Chat.PrintError("[OBSPlugin] Error on toggle recording, check log for details.");
+                }
+            }
+
+            ImGui.SameLine(ImGui.GetColumnWidth() - 80);
+            ImGui.TextColored(Plugin.obsRecordStatus == OutputState.Started ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
+                Plugin.obsRecordStatus == OutputState.Started ? "Recording" : "Stopped");
+
+            if (ImGui.InputText("Recordings Directory", ref Config.RecordDir, 256, ImGuiInputTextFlags.EnterReturnsTrue))
+            {
+                Config.Save();
+                if (Plugin.Connected)
+                {
+                    Plugin.obs.SetRecordingFolder(Config.RecordDir);
+                    PluginLog.Information("Recording directory set to {0}", Config.RecordDir);
+                }
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Enter to save");
+
+            if (ImGui.Checkbox("Zone as subfolder", ref Config.IncludeTerritory))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will save recordings to a subfolder named by the current zone name.");
+
+            if (ImGui.Checkbox("Start Recording On Combat", ref Config.StartRecordOnCombat))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will automatically start recording when combat starts.");
+
+            if (ImGui.Checkbox("Start Recording On CountDown", ref Config.StartRecordOnCountDown))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will automatically start recording when countdown starts.");
+
+            if (ImGui.Checkbox("Stop Recording On Combat Over In", ref Config.StopRecordOnCombat))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will automatically stop recording when combat is over in ");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(-1);
+            if (ImGui.DragInt("", ref Config.StopRecordOnCombatDelay, 1, 0, 60, "%d second(s)"))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Delay of \"Stop Recording On Combat Over\" in seconds.");
+
+        }
+
         internal void Dispose()
         {
+            if (Plugin.Connected)
+            {
+                foreach (Blur blur in BlurDict.Values)
+                {
+                    blur.Enabled = false;
+                    PluginLog.Debug("Turn off {0}", blur.Name);
+                    Plugin.obs.RemoveFilterFromSource(Config.SourceName, blur.Name);
+                }
+            }
             isThreadRunning = false;
         }
     

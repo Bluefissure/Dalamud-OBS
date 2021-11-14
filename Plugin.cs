@@ -1,17 +1,19 @@
 ﻿using System;
-using ImGuiNET;
 using Dalamud.Game;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
+using Dalamud.Data;
 using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
-using Newtonsoft.Json.Linq;
+using Dalamud.Game.ClientState.Conditions;
 using OBSPlugin.Attributes;
 using OBSWebsocketDotNet;
 using OBSPlugin.Objects;
 using OBSWebsocketDotNet.Types;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace OBSPlugin
 {
@@ -40,6 +42,18 @@ namespace OBSPlugin
         [RequiredVersion("1.0")]
         internal GameGui GameGui { get; init; }
 
+        [PluginService]
+        [RequiredVersion("1.0")]
+        internal SigScanner SigScanner { get; init; }
+
+        [PluginService]
+        [RequiredVersion("1.0")]
+        internal Condition Condition { get; init; }
+
+        [PluginService]
+        [RequiredVersion("1.0")]
+        internal DataManager Data { get; init; }
+
         internal readonly PluginCommandManager<Plugin> commandManager;
         internal Configuration config { get; private set; }
         internal readonly PluginUI ui;
@@ -48,7 +62,11 @@ namespace OBSPlugin
         internal bool Connected = false;
         internal bool ConnectionFailed = false;
         internal StreamStatus streamStatus;
-        internal OutputState obsStatus = OutputState.Stopped;
+        internal OutputState obsStreamStatus = OutputState.Stopped;
+        internal OutputState obsRecordStatus = OutputState.Stopped;
+        internal readonly StopWatchHook stopWatchHook;
+        internal CombatState state;
+        internal float lastCountdownValue;
 
         public string Name => "OBS Plugin";
 
@@ -59,6 +77,7 @@ namespace OBSPlugin
             obs.Disconnected += onDisconnect;
             obs.StreamStatus += onStreamData;
             obs.StreamingStateChanged += onStreamingStateChange;
+            obs.RecordingStateChanged += onRecordingStateChange;
 
             this.config = (Configuration)PluginInterface.GetPluginConfig() ?? new Configuration();
             this.config.Initialize(PluginInterface);
@@ -71,6 +90,57 @@ namespace OBSPlugin
             PluginInterface.UiBuilder.Draw += this.ui.Draw;
             PluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
 
+
+            state = new CombatState();
+            state.InCombatChanged += new EventHandler((Object sender, EventArgs e) =>
+            {
+                if (this.state.InCombat && config.StartRecordOnCombat)
+                {
+                    try
+                    {
+                        PluginLog.Information("Auto start recroding");
+                        this.ui.SetRecordingDir();
+                        this.obs.StartRecording();
+                    }
+                    catch (ErrorResponseException err)
+                    {
+                        PluginLog.Warning("Start Recording Error: {0}", err);
+                    }
+                } else if (!this.state.InCombat && config.StopRecordOnCombat)
+                {
+                    new Task(() =>
+                    {
+                        try
+                        {
+                            Thread.Sleep(config.StopRecordOnCombatDelay * 1000);
+                            PluginLog.Information("Auto stop recroding");
+                            this.ui.SetRecordingDir();
+                            this.obs.StopRecording();
+                        } catch (ErrorResponseException err)
+                        {
+                            PluginLog.Warning("Stop Recording Error: {0}", err);
+                        }
+                    }).Start();
+                }
+            });
+            state.CountingDownChanged += new EventHandler((Object sender, EventArgs e) =>
+            {
+                if (this.state.CountDownValue > lastCountdownValue)
+                {
+                    try
+                    {
+                        PluginLog.Information("Auto start recroding");
+                        this.ui.SetRecordingDir();
+                        this.obs.StartRecording();
+                    }catch (ErrorResponseException err)
+                    {
+                        PluginLog.Warning("Start Recording Error: {0}", err);
+                    }
+                }
+                lastCountdownValue = this.state.CountDownValue;
+            });
+            this.stopWatchHook = new StopWatchHook(PluginInterface, state, SigScanner, Condition);
+
             this.commandManager = new PluginCommandManager<Plugin>(this, Commands);
 
             if (config.Password.Length > 0)
@@ -78,6 +148,7 @@ namespace OBSPlugin
                 TryConnect(config.Address, config.Password);
             }
         }
+
 
         private void OpenConfigUi()
         {
@@ -112,6 +183,16 @@ namespace OBSPlugin
                 onStreamingStateChange(obs, OutputState.Started);
             else
                 onStreamingStateChange(obs, OutputState.Stopped);
+            if (streamStatus.IsRecording)
+                onRecordingStateChange(obs, OutputState.Started);
+            else
+                onRecordingStateChange(obs, OutputState.Stopped);
+            if (config.RecordDir.Equals(String.Empty))
+            {
+                var recordDir = obs.GetRecordingFolder();
+                config.RecordDir = recordDir;
+                config.Save();
+            }
         }
         private void onDisconnect(object sender, EventArgs e)
         {
@@ -126,7 +207,12 @@ namespace OBSPlugin
 
         private void onStreamingStateChange(OBSWebsocket sender, OutputState newState)
         {
-            obsStatus = newState;
+            obsStreamStatus = newState;
+        }
+
+        private void onRecordingStateChange(OBSWebsocket sender, OutputState newState)
+        {
+            obsRecordStatus = newState;
         }
 
         [Command("/obs")]
@@ -167,14 +253,18 @@ namespace OBSPlugin
 
             this.commandManager.Dispose();
 
-            this.ui.Dispose();
+            this.stopWatchHook.Dispose();
 
             PluginInterface.SavePluginConfig(this.config);
 
             PluginInterface.UiBuilder.Draw -= this.ui.Draw;
 
-            if (obs != null && obs.IsConnected)
+            this.ui.Dispose();
+
+            if (obs != null && this.Connected)
             {
+                if (config.RecordDir.Length > 0)
+                    obs.SetRecordingFolder(config.RecordDir);
                 obs.Disconnect();
             }
         }

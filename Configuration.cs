@@ -19,7 +19,9 @@ namespace OBSPlugin
         public string SourceName = "FFXIV";
         public string Address = "ws://127.0.0.1:4444/";
         public string Password = "";
-        public int BlurSize = 25;
+        // Blur settings
+        public int BlurSize = 3;
+        public bool BlurAsync = true;
         public bool DrawBlurRect = false;
         public bool ChatLogBlur = true;
         public bool PartyListBlur = true;
@@ -28,6 +30,13 @@ namespace OBSPlugin
         public bool FocusTargetBlur = false;
         public bool NamePlateBlur = false;
         public int MaxNamePlateCount = 1;
+        // Record settings
+        public string RecordDir = "";
+        public bool IncludeTerritory = true;
+        public bool StartRecordOnCountDown = false;
+        public bool StartRecordOnCombat = false;
+        public bool StopRecordOnCombat = false;
+        public int StopRecordOnCombatDelay = 5;
 
         public void Initialize(DalamudPluginInterface pluginInterface)
         {
