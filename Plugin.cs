@@ -94,6 +94,7 @@ namespace OBSPlugin
             state = new CombatState();
             state.InCombatChanged += new EventHandler((Object sender, EventArgs e) =>
             {
+                if (!Connected) return;
                 if (this.state.InCombat && config.StartRecordOnCombat)
                 {
                     try
@@ -125,6 +126,7 @@ namespace OBSPlugin
             });
             state.CountingDownChanged += new EventHandler((Object sender, EventArgs e) =>
             {
+                if (!Connected) return;
                 if (this.state.CountDownValue > lastCountdownValue)
                 {
                     try

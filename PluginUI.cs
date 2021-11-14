@@ -91,7 +91,14 @@ namespace OBSPlugin
 
         public void Draw()
         {
-            Plugin.stopWatchHook?.Update();
+            try
+            {
+                Plugin.stopWatchHook?.Update();
+            }
+            catch(Exception e)
+            {
+                PluginLog.Error("Error at updating stopwatch: {0}", e);
+            }
 
             if (Config.UIDetection)
                 UpdateGameUI();
