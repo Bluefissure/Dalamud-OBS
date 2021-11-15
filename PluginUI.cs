@@ -566,14 +566,18 @@ namespace OBSPlugin
             {
                 var childNode = targetInfo->UldManager.NodeList[i];
                 var IsVisible = GetNodeVisible(childNode);
-                if (childNode != null && childNode->Type == NodeType.Text && IsVisible)
+                if (childNode != null && childNode->Type == NodeType.Text)
                 {
-                    if (textIndex == 1)
+                    if(IsVisible)
                     {
-                        targetBlur = GetBlurFromNode(childNode, "Target");
-                    } else if (textIndex == 2)
-                    {
-                        targetTargetBlur = GetBlurFromNode(childNode, "TargetTarget");
+                        if (textIndex == 2)
+                        {
+                            targetBlur = GetBlurFromNode(childNode, "Target");
+                        }
+                        else if (textIndex == 5)
+                        {
+                            targetTargetBlur = GetBlurFromNode(childNode, "TargetTarget");
+                        }
                     }
                     textIndex++;
                 }
