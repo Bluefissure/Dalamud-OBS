@@ -562,6 +562,15 @@ namespace OBSPlugin
                 targetInfo = (AtkUnitBase*)targetInfoAddress;
             }
             int textIndex = 0;
+            int totalText = 0;
+            for (var i = 0; i < targetInfo->UldManager.NodeListCount; i++)
+            {
+                var childNode = targetInfo->UldManager.NodeList[i];
+                if (childNode != null && childNode->Type == NodeType.Text)
+                {
+                    totalText++;
+                }
+            }
             for (var i = 0; i < targetInfo->UldManager.NodeListCount; i++)
             {
                 var childNode = targetInfo->UldManager.NodeList[i];
@@ -574,7 +583,7 @@ namespace OBSPlugin
                         {
                             targetBlur = GetBlurFromNode(childNode, "Target");
                         }
-                        else if (textIndex == 5)
+                        else if (textIndex == totalText - 1)
                         {
                             targetTargetBlur = GetBlurFromNode(childNode, "TargetTarget");
                         }
