@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net5.0-windows</TargetFramework>
 		<LangVersion>9.0</LangVersion>
-		<Version>1.0.0.7</Version>
+		<Version>1.0.0.8</Version>
     <PublishSingleFile>true</PublishSingleFile>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
@@ -12,8 +12,8 @@
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<PlatformTarget>x64</PlatformTarget>
 		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-		<AssemblyVersion>1.0.0.7</AssemblyVersion>
-		<FileVersion>1.0.0.7</FileVersion>
+		<AssemblyVersion>1.0.0.8</AssemblyVersion>
+		<FileVersion>1.0.0.8</FileVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

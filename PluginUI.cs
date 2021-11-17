@@ -468,21 +468,19 @@ namespace OBSPlugin
                 var IsVisible = GetNodeVisible(childNode);
                 if (childNode != null && (int)childNode->Type == 1006 && IsVisible)
                 {
-                    int textCount = 0;
                     for (var j = 0; j < childNode->GetAsAtkComponentNode()->Component->UldManager.NodeListCount; j++)
                     {
                         var childChildNode = childNode->GetAsAtkComponentNode()->Component->UldManager.NodeList[j];
                         var childChildIsVisible = GetNodeVisible(childChildNode);
                         if (childChildNode != null && childChildNode->Type == NodeType.Text )
                         {
-                            if (textCount == 1 && childChildIsVisible)
+                            if (childChildNode->NodeID == 16 && childChildIsVisible)
                             {
                                 PartyMemberBlurList[partyMemberCount] = GetBlurFromNode(childChildNode, $"PartyList_{partyMemberCount}");
                                 existingBlur.Add($"PartyList_{partyMemberCount}");
                                 partyMemberCount++;
                                 break;
                             }
-                            textCount++;
                         }
                     }
                 }

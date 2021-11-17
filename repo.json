@@ -4,8 +4,8 @@
     "Author": "Bluefissure",
     "Description": "A plugin to control OBS by websocket.",
     "InternalName": "OBSPlugin",
-    "AssemblyVersion": "1.0.0.7",
-    "TestingAssemblyVersion": "1.0.0.7",
+    "AssemblyVersion": "1.0.0.8",
+    "TestingAssemblyVersion": "1.0.0.8",
     "RepoUrl": "https://github.com/Bluefissure/Dalamud-OBS",
     "IconUrl": "https://raw.githubusercontent.com/Bluefissure/Dalamud-OBS/master/releases/image/icon_.png",
     "ApplicableVersion": "any",
@@ -15,8 +15,8 @@
     "DownloadCount": 0,
     "LastUpdate": 0,
     "LoadPriority": 69420,
-    "DownloadLinkInstall": "https://github.com/Bluefissure/Dalamud-OBS/raw/master/releases/1.0.0.7/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Bluefissure/Dalamud-OBS/raw/master/releases/1.0.0.7/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Bluefissure/Dalamud-OBS/raw/master/releases/1.0.0.7/latest.zip"
+    "DownloadLinkInstall": "https://github.com/Bluefissure/Dalamud-OBS/raw/master/releases/1.0.0.8/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Bluefissure/Dalamud-OBS/raw/master/releases/1.0.0.8/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Bluefissure/Dalamud-OBS/raw/master/releases/1.0.0.8/latest.zip"
   }
 ]
