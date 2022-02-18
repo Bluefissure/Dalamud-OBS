@@ -68,6 +68,8 @@ namespace OBSPlugin
         internal CombatState state;
         internal float lastCountdownValue;
 
+        private bool _connectLock;
+
         public string Name => "OBS Plugin";
 
         public Plugin()
@@ -94,7 +96,11 @@ namespace OBSPlugin
             state = new CombatState();
             state.InCombatChanged += new EventHandler((Object sender, EventArgs e) =>
             {
-                if (!Connected) return;
+                if (!Connected)
+                {
+                    TryConnect(config.Address, config.Password);
+                    return;
+                }
                 if (this.state.InCombat && config.StartRecordOnCombat)
                 {
                     try
@@ -107,7 +113,8 @@ namespace OBSPlugin
                     {
                         PluginLog.Warning("Start Recording Error: {0}", err);
                     }
-                } else if (!this.state.InCombat && config.StopRecordOnCombat)
+                }
+                else if (!this.state.InCombat && config.StopRecordOnCombat)
                 {
                     new Task(() =>
                     {
@@ -117,7 +124,8 @@ namespace OBSPlugin
                             PluginLog.Information("Auto stop recroding");
                             this.ui.SetRecordingDir();
                             this.obs.StopRecording();
-                        } catch (ErrorResponseException err)
+                        }
+                        catch (ErrorResponseException err)
                         {
                             PluginLog.Warning("Stop Recording Error: {0}", err);
                         }
@@ -126,7 +134,11 @@ namespace OBSPlugin
             });
             state.CountingDownChanged += new EventHandler((Object sender, EventArgs e) =>
             {
-                if (!Connected) return;
+                if (!Connected)
+                {
+                    TryConnect(config.Address, config.Password);
+                    return;
+                }
                 if (this.state.CountDownValue > lastCountdownValue)
                 {
                     try
@@ -134,7 +146,8 @@ namespace OBSPlugin
                         PluginLog.Information("Auto start recroding");
                         this.ui.SetRecordingDir();
                         this.obs.StartRecording();
-                    }catch (ErrorResponseException err)
+                    }
+                    catch (ErrorResponseException err)
                     {
                         PluginLog.Warning("Start Recording Error: {0}", err);
                     }
@@ -157,24 +170,31 @@ namespace OBSPlugin
             this.ui.IsVisible = true;
         }
 
-        public bool TryConnect(string url, string password)
+        public async void TryConnect(string url, string password)
         {
+            if (_connectLock)
+            {
+                return;
+            }
             try
             {
-                obs.Connect(url, password);
+                _connectLock = true;
+                await Task.Run(() => obs.Connect(url, password));
                 ConnectionFailed = false;
-                return true;
             }
             catch (AuthFailureException)
             {
-                obs.Disconnect();
+                _ = Task.Run(() => obs.Disconnect());
                 ConnectionFailed = true;
             }
             catch (Exception e)
             {
                 PluginLog.Error("Connection error {0}", e);
             }
-            return false;
+            finally
+            {
+                _connectLock = false;
+            }
         }
         private void onConnect(object sender, EventArgs e)
         {
