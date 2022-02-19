@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net5.0-windows</TargetFramework>
 		<LangVersion>9.0</LangVersion>
-		<Version>1.0.0.8</Version>
+		<Version>1.0.1.0</Version>
     <PublishSingleFile>true</PublishSingleFile>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
@@ -12,8 +12,10 @@
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<PlatformTarget>x64</PlatformTarget>
 		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-		<AssemblyVersion>1.0.0.8</AssemblyVersion>
-		<FileVersion>1.0.0.8</FileVersion>
+		<AssemblyVersion>1.0.1.0</AssemblyVersion>
+		<FileVersion>1.0.1.0</FileVersion>
+		<Authors>Bluefissure</Authors>
+		<Company>OtterCorp</Company>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

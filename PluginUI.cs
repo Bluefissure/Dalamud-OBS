@@ -280,7 +280,11 @@ namespace OBSPlugin
             if (Plugin.ClientState.LocalPlayer == null) return;
             try
             {
-                UpdateChatLog();
+                UpdateChatLog("ChatLog");
+                UpdateChatLog("ChatLogPanel_0");
+                UpdateChatLog("ChatLogPanel_1");
+                UpdateChatLog("ChatLogPanel_2");
+                UpdateChatLog("ChatLogPanel_3");
             }
             catch (Exception e)
             {
@@ -443,15 +447,15 @@ namespace OBSPlugin
             }
         }
 
-        private unsafe void UpdateChatLog()
+        private unsafe void UpdateChatLog(string ChatLogWindowName)
         {
             if (!Config.ChatLogBlur) return;
-            var chatLogAddress = Plugin.GameGui.GetAddonByName("ChatLog", 1);
+            var chatLogAddress = Plugin.GameGui.GetAddonByName(ChatLogWindowName, 1);
             if (chatLogAddress == IntPtr.Zero) return;
             var chatLog = (AtkUnitBase*)chatLogAddress;
             if (chatLog->UldManager.NodeListCount <= 0) return;
             var chatLogNode = chatLog->UldManager.NodeList[0];
-            UpdateBlur(GetBlurFromNode(chatLogNode, "ChatLog"));
+            UpdateBlur(GetBlurFromNode(chatLogNode, ChatLogWindowName));
         }
 
         private unsafe void UpdatePartyList()
