@@ -139,7 +139,7 @@ namespace OBSPlugin
                     TryConnect(config.Address, config.Password);
                     return;
                 }
-                if (this.state.CountDownValue > lastCountdownValue)
+                if (this.state.CountDownValue > lastCountdownValue && config.StartRecordOnCountDown)
                 {
                     try
                     {
