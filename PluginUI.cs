@@ -576,7 +576,7 @@ namespace OBSPlugin
             if (!Config.TargetBlur && !Config.TargetTargetBlur) return;
             Blur targetBlur = null;
             Blur targetTargetBlur = null;
-            uint partyMemberCount = 0;
+            // uint partyMemberCount = 0;
             var targetInfoAddress = Plugin.GameGui.GetAddonByName("_TargetInfo", 1);
             if (targetInfoAddress == IntPtr.Zero) return;
             var targetInfo = (AtkUnitBase*)targetInfoAddress;
@@ -1048,6 +1048,7 @@ namespace OBSPlugin
 
         internal void SetRecordingDir()
         {
+            SetFilenameFormatting();
             if(Config.RecordDir == null || Config.RecordDir.Length == 0) return;
             if(Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
 
@@ -1060,6 +1061,22 @@ namespace OBSPlugin
             }
             
             Plugin.obs.SetRecordingFolder(curDir);
+        }
+
+        internal void SetFilenameFormatting()
+        {
+            if(Config.FilenameFormat == null || Config.FilenameFormat.Length == 0) return;
+            if(Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
+
+            var filenameFormat = Config.FilenameFormat;
+            if (Config.ZoneAsSuffix && Plugin.obsRecordStatus == OutputState.Stopped)
+            {
+                var terriIdx = Plugin.ClientState.TerritoryType;
+                var terriName = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx).Map.Value.PlaceName.Value.Name;
+                filenameFormat += "_" + terriName;
+            }
+            
+            Plugin.obs.SetFilenameFormatting(filenameFormat);
         }
 
         private void DrawRecord()
@@ -1127,6 +1144,13 @@ namespace OBSPlugin
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("If selected, will save recordings to a subfolder named by the current zone name.");
+
+            if (ImGui.Checkbox("Zone as suffix", ref Config.ZoneAsSuffix))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will add a suffix named by the current zone name to recordings.");
 
             if (ImGui.Checkbox("Start Recording On Combat", ref Config.StartRecordOnCombat))
             {

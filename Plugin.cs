@@ -213,6 +213,7 @@ namespace OBSPlugin
             {
                 var recordDir = obs.GetRecordingFolder();
                 config.RecordDir = recordDir;
+                config.FilenameFormat = obs.GetFilenameFormatting();
                 config.Save();
             }
         }
