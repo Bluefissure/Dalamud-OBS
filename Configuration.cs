@@ -34,7 +34,9 @@ namespace OBSPlugin
         public int MaxNamePlateCount = 1;
         // Record settings
         public string RecordDir = "";
+        public string FilenameFormat = "%CCYY-%MM-%DD %hh-%mm-%ss";
         public bool IncludeTerritory = true;
+        public bool ZoneAsSuffix = false;
         public bool StartRecordOnCountDown = false;
         public bool StartRecordOnCombat = false;
         public bool StopRecordOnCombat = false;
