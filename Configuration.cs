@@ -29,6 +29,8 @@ namespace OBSPlugin
         public bool TargetTargetBlur = true;
         public bool FocusTargetBlur = false;
         public bool NamePlateBlur = false;
+        public bool CharacterBlur = false;
+        public bool FriendListBlur = false;
         public int MaxNamePlateCount = 1;
         // Record settings
         public string RecordDir = "";
