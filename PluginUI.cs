@@ -338,6 +338,28 @@ namespace OBSPlugin
                 UIErrorCount++;
                 Config.Save();
             }
+            try
+            {
+                UpdateCharacter();
+            }
+            catch (Exception e)
+            {
+                PluginLog.Error("Error Updating Character UI: {0}", e);
+                Config.CharacterBlur = false;
+                UIErrorCount++;
+                Config.Save();
+            }
+            try
+            {
+                UpdateFridendList();
+            }
+            catch (Exception e)
+            {
+                PluginLog.Error("Error Updating FriendList UI: {0}", e);
+                Config.FriendListBlur = false;
+                UIErrorCount++;
+                Config.Save();
+            }
             if (UIErrorCount > 1000)
             {
                 var errMsg = "More than 1000 UI errors encountered, UI detection is turned off. " +
@@ -554,7 +576,7 @@ namespace OBSPlugin
             if (!Config.TargetBlur && !Config.TargetTargetBlur) return;
             Blur targetBlur = null;
             Blur targetTargetBlur = null;
-            uint partyMemberCount = 0;
+            // uint partyMemberCount = 0;
             var targetInfoAddress = Plugin.GameGui.GetAddonByName("_TargetInfo", 1);
             if (targetInfoAddress == IntPtr.Zero) return;
             var targetInfo = (AtkUnitBase*)targetInfoAddress;
@@ -655,6 +677,47 @@ namespace OBSPlugin
             {
                 UpdateBlur(focusTargetBlur);
             }
+        }
+
+        private unsafe void UpdateCharacter()
+        {
+            if (!Config.CharacterBlur) return;
+            var characterAddress = Plugin.GameGui.GetAddonByName("Character", 1);
+            var characterProfileAddress = Plugin.GameGui.GetAddonByName("CharacterProfile", 1);
+            // character
+            if (characterAddress == IntPtr.Zero) return;
+            var character = (AtkUnitBase*)characterAddress;
+            if (character->UldManager.NodeListCount <= 0) return;
+            var childNode = character->UldManager.NodeList[80];
+            UpdateBlur(GetBlurFromNode(childNode, "Character"));
+            // characterProfile, may separate but i think it is fun
+            if (characterProfileAddress == IntPtr.Zero) return;
+            var characterProfile = (AtkUnitBase*)characterProfileAddress;
+            if (characterProfile->UldManager.NodeListCount <= 0) return;
+            var childNodeProfile = characterProfile->UldManager.NodeList[30];
+            UpdateBlur(GetBlurFromNode(childNodeProfile, "CharacterProfile"));
+        }
+
+        private unsafe void UpdateFridendList()
+        {
+            if (!Config.FriendListBlur) return;
+            var friendListAddress = Plugin.GameGui.GetAddonByName("FriendList", 1);
+            if (friendListAddress == IntPtr.Zero) return;
+            var friendList = (AtkUnitBase*)friendListAddress;
+            if (friendList->UldManager.NodeListCount <= 0) return;
+            var childNode = friendList->UldManager.NodeList[8];
+            UpdateBlur(GetBlurFromNode(childNode, "FriendList"));
+        }
+
+        // TODO IDK how to create the list in UI, maybe i can write a command
+        private unsafe void UpdateCustomAddon(String addonName)
+        {
+            var addonAddress = Plugin.GameGui.GetAddonByName(addonName, 1);
+            if (addonAddress == IntPtr.Zero) return;
+            var addon = (AtkUnitBase*)addonAddress;
+            if (addon->UldManager.NodeListCount <= 0) return;
+            var childNode = addon->UldManager.NodeList[0];
+            UpdateBlur(GetBlurFromNode(childNode, addonName));
         }
 
         private void DrawConnectionSettings()
@@ -826,6 +889,35 @@ namespace OBSPlugin
                 }
                 Config.Save();
             }
+            if (ImGui.Checkbox("Character", ref Config.CharacterBlur))
+            {
+                if (!Config.CharacterBlur)
+                {
+                    Blur characterBlur = null;
+                    if (BlurDict.TryGetValue("Character", out characterBlur))
+                    {
+                        characterBlur.Enabled = false;
+                        PluginLog.Debug("Turn off {0}", characterBlur.Name);
+                        BlurItemsToAdd.Add((Blur)characterBlur.Clone());
+                    }
+                }
+                Config.Save();
+
+            }
+            if (ImGui.Checkbox("FriendList", ref Config.FriendListBlur))
+            {
+                if (!Config.FriendListBlur)
+                {
+                    Blur friendListBlur = null;
+                    if (BlurDict.TryGetValue("FriendList", out friendListBlur))
+                    {
+                        friendListBlur.Enabled = false;
+                        PluginLog.Debug("Turn off {0}", friendListBlur.Name);
+                        BlurItemsToAdd.Add((Blur)friendListBlur.Clone());
+                    }
+                }
+                Config.Save();
+            }
             /*
             if (ImGui.Checkbox("NamePlate", ref Config.NamePlateBlur))
             {
@@ -980,6 +1072,7 @@ namespace OBSPlugin
 
         internal void SetRecordingDir()
         {
+            SetFilenameFormatting();
             if(Config.RecordDir == null || Config.RecordDir.Length == 0) return;
             if(Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
 
@@ -992,6 +1085,22 @@ namespace OBSPlugin
             }
             
             Plugin.obs.SetRecordingFolder(curDir);
+        }
+
+        internal void SetFilenameFormatting()
+        {
+            if(Config.FilenameFormat == null || Config.FilenameFormat.Length == 0) return;
+            if(Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
+
+            var filenameFormat = Config.FilenameFormat;
+            if (Config.ZoneAsSuffix && Plugin.obsRecordStatus == OutputState.Stopped)
+            {
+                var terriIdx = Plugin.ClientState.TerritoryType;
+                var terriName = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx).Map.Value.PlaceName.Value.Name;
+                filenameFormat += "_" + terriName;
+            }
+            
+            Plugin.obs.SetFilenameFormatting(filenameFormat);
         }
 
         private void DrawRecord()
@@ -1059,6 +1168,13 @@ namespace OBSPlugin
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("If selected, will save recordings to a subfolder named by the current zone name.");
+
+            if (ImGui.Checkbox("Zone as suffix", ref Config.ZoneAsSuffix))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will add a suffix named by the current zone name to recordings.");
 
             if (ImGui.Checkbox("Start Recording On Combat", ref Config.StartRecordOnCombat))
             {

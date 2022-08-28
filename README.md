@@ -12,5 +12,3 @@ You need to install two plugins to your OBS:
 ## Installation
 
 You can enable the testing plugins in Dalamud settings.
-
-Or you can add `https://raw.githubusercontent.com/Bluefissure/Dalamud-OBS/master/repo.json` as a third-party repo in Dalamud settings.
