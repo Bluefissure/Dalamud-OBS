@@ -715,7 +715,7 @@ namespace OBSPlugin
                 Config.Save();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Draw the blurred content with a vkye boundary.");
+                ImGui.SetTooltip("Draw the blurred content with a blue boundary.");
             if (ImGui.InputText("Source Name", ref Config.SourceName, 128))
             {
                 Config.Save();
@@ -736,6 +736,30 @@ namespace OBSPlugin
                 {
                     Blur chatLogBlur = null;
                     if (BlurDict.TryGetValue("ChatLog", out chatLogBlur))
+                    {
+                        chatLogBlur.Enabled = false;
+                        PluginLog.Debug("Turn off {0}", chatLogBlur.Name);
+                        BlurItemsToAdd.Add((Blur)chatLogBlur.Clone());
+                    }
+                    if (BlurDict.TryGetValue("ChatLogPanel_0", out chatLogBlur))
+                    {
+                        chatLogBlur.Enabled = false;
+                        PluginLog.Debug("Turn off {0}", chatLogBlur.Name);
+                        BlurItemsToAdd.Add((Blur)chatLogBlur.Clone());
+                    }
+                    if (BlurDict.TryGetValue("ChatLogPanel_1", out chatLogBlur))
+                    {
+                        chatLogBlur.Enabled = false;
+                        PluginLog.Debug("Turn off {0}", chatLogBlur.Name);
+                        BlurItemsToAdd.Add((Blur)chatLogBlur.Clone());
+                    }
+                    if (BlurDict.TryGetValue("ChatLogPanel_2", out chatLogBlur))
+                    {
+                        chatLogBlur.Enabled = false;
+                        PluginLog.Debug("Turn off {0}", chatLogBlur.Name);
+                        BlurItemsToAdd.Add((Blur)chatLogBlur.Clone());
+                    }
+                    if (BlurDict.TryGetValue("ChatLogPanel_3", out chatLogBlur))
                     {
                         chatLogBlur.Enabled = false;
                         PluginLog.Debug("Turn off {0}", chatLogBlur.Name);

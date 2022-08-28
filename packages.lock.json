@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net6.0": {
+      "DalamudPackager": {
+        "type": "Direct",
+        "requested": "[2.1.8, )",
+        "resolved": "2.1.8",
+        "contentHash": "YqagNXs9InxmqkXzq7kLveImxnodkBEicAhydMXVp7dFjC7xb76U6zGgAax4/BWIWfZeWzr5DJyQSev31kj81A=="
+      },
+      "obs-websocket-dotnet": {
+        "type": "Direct",
+        "requested": "[4.9.1, )",
+        "resolved": "4.9.1",
+        "contentHash": "MimAHYBy1aNuFw2i/m7aM6nNW7gAKjHG4/6EHS7yi1ymirjCqjf1nBAOETVMC+jVIiqlkgcdNOXC5K2HqA5s2A==",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.1",
+          "WebSocketSharp-netstandard": "1.0.1"
+        }
+      },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
+      },
+      "WebSocketSharp-netstandard": {
+        "type": "Transitive",
+        "resolved": "1.0.1",
+        "contentHash": "knoinAv31vbdxXdypnzN2MPX5hyntVLWceq6OdWRXkr9zzqp/RWbxSuLFGbkW8De1061URgNAN43BUTlgMx1CA=="
+      }
+    }
+  }
+}

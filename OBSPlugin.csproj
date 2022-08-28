@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net5.0-windows</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<LangVersion>9.0</LangVersion>
-		<Version>1.0.1.1</Version>
+		<Version>1.0.2.0</Version>
     <PublishSingleFile>true</PublishSingleFile>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
@@ -12,11 +12,20 @@
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<PlatformTarget>x64</PlatformTarget>
 		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-		<AssemblyVersion>1.0.1.1</AssemblyVersion>
-		<FileVersion>1.0.1.1</FileVersion>
+		<AssemblyVersion>1.0.2.0</AssemblyVersion>
+		<FileVersion>1.0.2.0</FileVersion>
 		<Authors>Bluefissure</Authors>
 		<Company>OtterCorp</Company>
 	</PropertyGroup>
+	
+	<PropertyGroup>
+		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+	</PropertyGroup>
+	
+  <PropertyGroup>
+    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+    <StartupObject />
+  </PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -27,45 +36,41 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="DalamudPackager" Version="2.1.4" />
-		<PackageReference Include="obs-websocket-dotnet" Version="4.9.0">
+		<PackageReference Include="DalamudPackager" Version="2.1.8" />
+		<PackageReference Include="obs-websocket-dotnet" Version="4.9.1">
 		  <GeneratePathProperty>true</GeneratePathProperty>
 		</PackageReference>
 	</ItemGroup>
 
 	<ItemGroup>
 	  <Reference Include="Dalamud">
-	    <HintPath>..\Dalamud\bin\Dalamud.dll</HintPath>
+	    <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="FFXIVClientStructs">
-	    <HintPath>..\Dalamud\bin\FFXIVClientStructs.dll</HintPath>
+	    <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="ImGui.NET">
-	    <HintPath>..\Dalamud\bin\ImGui.NET.dll</HintPath>
+	    <HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="ImGuiScene">
-	    <HintPath>..\Dalamud\bin\ImGuiScene.dll</HintPath>
+	    <HintPath>$(DalamudLibPath)ImGuiScene.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="Lumina">
-	    <HintPath>..\Dalamud\bin\Lumina.dll</HintPath>
+	    <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="Lumina.Excel">
-	    <HintPath>..\Dalamud\bin\Lumina.Excel.dll</HintPath>
+	    <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="Newtonsoft.Json">
-	    <HintPath>..\Dalamud\bin\Newtonsoft.Json.dll</HintPath>
+	    <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	</ItemGroup>
-
-	<!-- <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-	  <Exec Command="xcopy $(OutDir)\OBSPlugin.dll &quot;D:\Code\FFXIV\__Dalamud__\Dalamud\Dalamud.Updater\bin\Release\XIVLauncher\devPlugins&quot;  /K /D /H /Y" />
-	</Target> -->
 
 </Project>
