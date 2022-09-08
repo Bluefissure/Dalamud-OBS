@@ -952,17 +952,20 @@ namespace OBSPlugin
         {
             // ImGui.Text("This plugin is still WIP, lot of functions are still in development.");
 
-            ImGui.Text("You need to install two plugins in your OBS for this plugin to work:");
+            ImGui.Text("You need to install two plugins in your OBS for this plugin to work.");
 
+            ImGui.Separator();
+
+            ImGui.Text("For OBS v27:");
             ImGui.BulletText("");
             ImGui.SameLine();
-            if (ImGui.Button("StreamFX"))
+            if (ImGui.Button("StreamFX 0.11.1"))
             {
                 try
                 {
                     Process.Start(new ProcessStartInfo()
                     {
-                        FileName = "https://github.com/Xaymar/obs-StreamFX/releases/latest",
+                        FileName = "https://github.com/Xaymar/obs-StreamFX/releases/tag/0.11.1",
                         UseShellExecute = true,
                     });
                 }
@@ -976,13 +979,13 @@ namespace OBSPlugin
 
             ImGui.BulletText("");
             ImGui.SameLine();
-            if (ImGui.Button("OBS-websocket"))
+            if (ImGui.Button("OBS-websocket 4.9.1"))
             {
                 try
                 {
                     Process.Start(new ProcessStartInfo()
                     {
-                        FileName = "https://github.com/Palakis/obs-websocket/releases/latest",
+                        FileName = "https://github.com/obsproject/obs-websocket/releases/tag/4.9.1",
                         UseShellExecute = true,
                     });
                 }
@@ -992,7 +995,54 @@ namespace OBSPlugin
                 }
             }
             ImGui.SameLine();
-            ImGui.Text("You need to set a password and provide in the #Connection tab.");
+            ImGui.Text("You need to set a password and provide it in the #Connection tab.");
+
+            ImGui.Separator();
+
+            ImGui.Text("For OBS v28:");
+            ImGui.BulletText("");
+            ImGui.SameLine();
+            if (ImGui.Button("StreamFX 0.12.0 alpha"))
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo()
+                    {
+                        FileName = "https://github.com/Xaymar/obs-StreamFX/releases/tag/0.12.0a117",
+                        UseShellExecute = true,
+                    });
+                }
+                catch (Exception ex)
+                {
+                    PluginLog.Error(ex, "Could not open StreamFX url");
+                }
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("You probably need to uninstall & delete the old plugin if you installed 0.11.x in OBS 27.");
+            ImGui.SameLine();
+            ImGui.Text("Just download and install.");
+
+            ImGui.BulletText("");
+            ImGui.SameLine();
+            if (ImGui.Button("OBS-websocket 4.9.1-compat"))
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo()
+                    {
+                        FileName = "https://github.com/obsproject/obs-websocket/releases/tag/4.9.1-compat",
+                        UseShellExecute = true,
+                    });
+                }
+                catch (Exception ex)
+                {
+                    PluginLog.Error(ex, "Could not open OBS-websocket url");
+                }
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("The latest version of the build-in obs-websocket plugin in OBS 28 lacks some of the APIs used in this plugin and therefore will be pending untill fully supported.");
+            ImGui.SameLine();
+            ImGui.Text("You need to set a password and provide it in the #Connection tab.");
 
             ImGui.NewLine();
             ImGui.Text("If you encountered any bugs please submit issues in");
@@ -1012,6 +1062,9 @@ namespace OBSPlugin
                     PluginLog.Error(ex, "Could not open OBS-websocket url");
                 }
             }
+
+
+
         }
 
         private void DrawStream()
