@@ -6,8 +6,17 @@ A Dalamud plugin that communicates with OBS by websocket.
 
 You need to install two plugins to your OBS:
 
-- [OBS-websocket](https://github.com/Palakis/obs-websocket/releases/latest): for communication with this plugin.
-- [StreamFX](https://github.com/Xaymar/obs-StreamFX/releases/latest): for the blur function.
+### OBS 28
+
+You still need to use OBS-websocket plugin 4.9.1-compat instead of the built-in one because of the not-backward-compatible api 5 and it lacks some of the APIs in api 4.
+
+- [OBS-websocket 4.9.1-compat](https://github.com/obsproject/obs-websocket/releases/tag/4.9.1-compat): for communication with this plugin.
+- [StreamFX 0.12.0 alpha](https://github.com/Xaymar/obs-StreamFX/releases/tag/0.12.0a117): for the blur function.
+
+### OBS 27
+
+- [OBS-websocket 4.9.1](https://github.com/obsproject/obs-websocket/releases/tag/4.9.1): for communication with this plugin.
+- [StreamFX 0.11.1](https://github.com/Xaymar/obs-StreamFX/releases/tag/0.11.1): for the blur function.
 
 ## Installation
 
