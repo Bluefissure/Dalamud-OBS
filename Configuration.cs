@@ -1,9 +1,7 @@
 ﻿using Dalamud.Configuration;
-using Dalamud.Logging;
 using Dalamud.Plugin;
 using Newtonsoft.Json;
-using OBSPlugin.Objects;
-using System.Collections.Generic;
+using System;
 
 namespace OBSPlugin
 {
@@ -31,7 +29,10 @@ namespace OBSPlugin
         public bool NamePlateBlur = false;
         public bool CharacterBlur = false;
         public bool FriendListBlur = false;
+        public bool HotbarBlur = false;
+        public bool CastBarBlur = false;
         public int MaxNamePlateCount = 1;
+        public int[] BlurredHotbars = Array.Empty<int>();
         // Record settings
         public string RecordDir = "";
         public string FilenameFormat = "%CCYY-%MM-%DD %hh-%mm-%ss";
@@ -40,6 +41,7 @@ namespace OBSPlugin
         public bool StartRecordOnCountDown = false;
         public bool StartRecordOnCombat = false;
         public bool StopRecordOnCombat = false;
+        public bool CancelStopRecordOnResume = true;
         public int StopRecordOnCombatDelay = 5;
 
         public void Initialize(DalamudPluginInterface pluginInterface)

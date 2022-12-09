@@ -1,19 +1,19 @@
-﻿using System;
+﻿using Dalamud.Data;
 using Dalamud.Game;
 using Dalamud.Game.ClientState;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
-using Dalamud.Data;
 using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
-using Dalamud.Game.ClientState.Conditions;
 using OBSPlugin.Attributes;
-using OBSWebsocketDotNet;
 using OBSPlugin.Objects;
+using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Types;
-using System.Threading.Tasks;
+using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace OBSPlugin
 {
@@ -69,6 +69,8 @@ namespace OBSPlugin
         internal float lastCountdownValue;
 
         private bool _connectLock;
+        private CancellationTokenSource _cts = new();
+        private bool _stoppingRecord = false;
 
         public string Name => "OBS Plugin";
 
@@ -99,15 +101,22 @@ namespace OBSPlugin
                 if (!Connected)
                 {
                     TryConnect(config.Address, config.Password);
-                    return;
+                    if (!Connected) return;
                 }
                 if (this.state.InCombat && config.StartRecordOnCombat)
                 {
                     try
                     {
-                        PluginLog.Information("Auto start recroding");
-                        this.ui.SetRecordingDir();
-                        this.obs.StartRecording();
+                        if (config.CancelStopRecordOnResume && _stoppingRecord)
+                        {
+                            _cts.Cancel();
+                        }
+                        else
+                        {
+                            PluginLog.Information("Auto start recroding");
+                            this.ui.SetRecordingDir();
+                            this.obs.StartRecording();
+                        }
                     }
                     catch (ErrorResponseException err)
                     {
@@ -120,7 +129,14 @@ namespace OBSPlugin
                     {
                         try
                         {
-                            Thread.Sleep(config.StopRecordOnCombatDelay * 1000);
+                            _stoppingRecord = true;
+                            var delay = config.StopRecordOnCombatDelay;
+                            do
+                            {
+                                _cts.Token.ThrowIfCancellationRequested();
+                                Thread.Sleep(1000);
+                                delay -= 1;
+                            } while (delay > 0);
                             PluginLog.Information("Auto stop recroding");
                             this.ui.SetRecordingDir();
                             this.obs.StopRecording();
@@ -129,7 +145,13 @@ namespace OBSPlugin
                         {
                             PluginLog.Warning("Stop Recording Error: {0}", err);
                         }
-                    }).Start();
+                        finally
+                        {
+                            _stoppingRecord = false;
+                            _cts.Dispose();
+                            _cts = new();
+                        }
+                    }, _cts.Token).Start();
                 }
             });
             state.CountingDownChanged += new EventHandler((Object sender, EventArgs e) =>

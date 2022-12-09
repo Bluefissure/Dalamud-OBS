@@ -360,6 +360,28 @@ namespace OBSPlugin
                 UIErrorCount++;
                 Config.Save();
             }
+            try
+            {
+                UpdateHotbar();
+            }
+            catch (Exception e)
+            {
+                PluginLog.Error("Error Updating Hotbar UI: {0}", e);
+                Config.HotbarBlur = false;
+                UIErrorCount++;
+                Config.Save();
+            }
+            try
+            {
+                UpdateCastBar();
+            }
+            catch (Exception e)
+            {
+                PluginLog.Error("Error Updating CastBar UI: {0}", e);
+                Config.CastBarBlur = false;
+                UIErrorCount++;
+                Config.Save();
+            }
             if (UIErrorCount > 1000)
             {
                 var errMsg = "More than 1000 UI errors encountered, UI detection is turned off. " +
@@ -709,6 +731,29 @@ namespace OBSPlugin
             UpdateBlur(GetBlurFromNode(childNode, "FriendList"));
         }
 
+        private unsafe void UpdateHotbar()
+        {
+            if (!Config.HotbarBlur || !Config.BlurredHotbars.Any()) return;
+            foreach(var i in Config.BlurredHotbars)
+            {
+                var suffix = (i - 1).ToString("00");
+                var hotbarAddress = Plugin.GameGui.GetAddonByName($"_ActionBar{(suffix == "00" ? string.Empty : suffix)}", 1);
+                if (hotbarAddress == IntPtr.Zero) return;
+                var hotbar = (AtkUnitBase*)hotbarAddress;
+                var childNode = hotbar->UldManager.NodeList[0];
+                UpdateBlur(GetBlurFromNode(childNode, $"Hotbar{suffix}"));
+            }
+        }
+        private unsafe void UpdateCastBar()
+        {
+            if (!Config.CastBarBlur) return;
+            var castbarAddress = Plugin.GameGui.GetAddonByName("_CastBar", 1);
+            if (castbarAddress == IntPtr.Zero) return;
+            var castbar = (AtkUnitBase*)castbarAddress;
+            var childNode = castbar->UldManager.NodeList[1];
+            UpdateBlur(GetBlurFromNode(childNode, "CastBar"));
+        }
+
         // TODO IDK how to create the list in UI, maybe i can write a command
         private unsafe void UpdateCustomAddon(String addonName)
         {
@@ -914,6 +959,50 @@ namespace OBSPlugin
                         friendListBlur.Enabled = false;
                         PluginLog.Debug("Turn off {0}", friendListBlur.Name);
                         BlurItemsToAdd.Add((Blur)friendListBlur.Clone());
+                    }
+                }
+                Config.Save();
+            }
+            if (ImGui.Checkbox("Hotbar", ref Config.HotbarBlur))
+            {
+                if (!Config.HotbarBlur)
+                {
+                    var hotbars = BlurDict.Where(x => x.Key.Length >= 8 && x.Key[..6] == "Hotbar");
+                    if (hotbars.Any())
+                    {
+                        PluginLog.Debug("Turn off HotbarBlur");
+                        foreach(var i in hotbars)
+                        {
+                            i.Value.Enabled = false;
+                            BlurItemsToAdd.Add((Blur)i.Value.Clone());
+                        }
+                    }
+                }
+                Config.Save();
+            }
+            if (Config.HotbarBlur)
+            {
+                ImGui.SameLine();
+                var numbers = string.Join(",", Config.BlurredHotbars.Select(x => x.ToString()));
+                ImGui.InputTextWithHint(string.Empty, "hotbar number splitted by comma", ref numbers, 32);
+                try
+                {
+                    Config.BlurredHotbars = numbers.Trim().Replace("，", ",").Split(",").Select(x => int.Parse(x)).ToArray();
+                }
+                catch { }
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Adding hotbar will effects instantly, but remove need to re-enable hotbar blur to make it change.");
+            if (ImGui.Checkbox("CastBar", ref Config.CastBarBlur))
+            {
+                if (!Config.CastBarBlur)
+                {
+                    Blur castbarBlur = null;
+                    if (BlurDict.TryGetValue("CastBar", out castbarBlur))
+                    {
+                        castbarBlur.Enabled = false;
+                        PluginLog.Debug("Turn off {0}", castbarBlur.Name);
+                        BlurItemsToAdd.Add((Blur)castbarBlur.Clone());
                     }
                 }
                 Config.Save();
@@ -1136,7 +1225,7 @@ namespace OBSPlugin
                 var terriName = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx).Map.Value.PlaceName.Value.Name;
                 curDir = Path.Combine(curDir, terriName);
             }
-            
+
             Plugin.obs.SetRecordingFolder(curDir);
         }
 
@@ -1152,7 +1241,7 @@ namespace OBSPlugin
                 var terriName = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx).Map.Value.PlaceName.Value.Name;
                 filenameFormat += "_" + terriName;
             }
-            
+
             Plugin.obs.SetFilenameFormatting(filenameFormat);
         }
 
@@ -1251,13 +1340,18 @@ namespace OBSPlugin
                 ImGui.SetTooltip("If selected, will automatically stop recording when combat is over in ");
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
-            if (ImGui.DragInt("", ref Config.StopRecordOnCombatDelay, 1, 0, 60, "%d second(s)"))
+            if (ImGui.DragInt("", ref Config.StopRecordOnCombatDelay, 1, 0, 300, "%d second(s)"))
             {
                 Config.Save();
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Delay of \"Stop Recording On Combat Over\" in seconds.");
-
+            if(Config.StopRecordOnCombat && ImGui.Checkbox("Cancel Stop Record On Combat Resume", ref Config.CancelStopRecordOnResume))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will not stop recording if another starts before stop countdown.");
         }
 
         internal void Dispose()
@@ -1273,6 +1367,6 @@ namespace OBSPlugin
             }
             isThreadRunning = false;
         }
-    
+
     }
 }
