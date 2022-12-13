@@ -985,14 +985,14 @@ namespace OBSPlugin
                 ImGui.SameLine();
                 var numbers = string.Join(",", Config.BlurredHotbars.Select(x => x.ToString()));
                 ImGui.InputTextWithHint(string.Empty, "hotbar number splitted by comma", ref numbers, 32);
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Adding hotbar will effect instantly, but remove need to re-enable hotbar blur to make it change.");
                 try
                 {
                     Config.BlurredHotbars = numbers.Trim().Replace("，", ",").Split(",").Select(x => int.Parse(x)).ToArray();
                 }
                 catch { }
             }
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Adding hotbar will effects instantly, but remove need to re-enable hotbar blur to make it change.");
             if (ImGui.Checkbox("CastBar", ref Config.CastBarBlur))
             {
                 if (!Config.CastBarBlur)
