@@ -1088,7 +1088,7 @@ namespace OBSPlugin
 
             ImGui.Separator();
 
-            ImGui.Text("For OBS v28:");
+            ImGui.Text("For OBS v28+:");
             ImGui.BulletText("");
             ImGui.SameLine();
             if (ImGui.Button("StreamFX 0.12.0 alpha"))
@@ -1346,7 +1346,13 @@ namespace OBSPlugin
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Delay of \"Stop Recording On Combat Over\" in seconds.");
-            if(Config.StopRecordOnCombat && ImGui.Checkbox("Cancel Stop Record On Combat Resume", ref Config.CancelStopRecordOnResume))
+            if (Config.StopRecordOnCombat && ImGui.Checkbox("Don't Stop Recording in cutscene", ref Config.DontStopInCutscene))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will not stop recording if player is viewing cutscenes.");
+            if (Config.StopRecordOnCombat && ImGui.Checkbox("Cancel Stop Recording On Combat Resume", ref Config.CancelStopRecordOnResume))
             {
                 Config.Save();
             }

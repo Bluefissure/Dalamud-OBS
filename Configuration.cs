@@ -43,6 +43,7 @@ namespace OBSPlugin
         public bool StopRecordOnCombat = false;
         public bool CancelStopRecordOnResume = true;
         public int StopRecordOnCombatDelay = 5;
+        public bool DontStopInCutscene = true;
 
         public void Initialize(DalamudPluginInterface pluginInterface)
         {
