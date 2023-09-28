@@ -22,8 +22,8 @@ namespace OBSPlugin
     {
         private readonly Plugin Plugin;
         private bool isThreadRunning = true;
-        internal BlockingCollection<Blur> BlurItemsToAdd = new (10000);
-        internal BlockingCollection<Blur> BlurItemsToRemove = new (10000);
+        internal BlockingCollection<Blur> BlurItemsToAdd = new(10000);
+        internal BlockingCollection<Blur> BlurItemsToRemove = new(10000);
         public Dictionary<string, Blur> BlurDict = new();
         public Configuration Config => Plugin.config;
         private int UIErrorCount = 0;
@@ -95,7 +95,7 @@ namespace OBSPlugin
             {
                 Plugin.stopWatchHook?.Update();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 PluginLog.Error("Error at updating stopwatch: {0}", e);
             }
@@ -191,22 +191,37 @@ namespace OBSPlugin
                 {
                     filter = Plugin.obs.GetSourceFilterInfo(sourceName, blur.Name);
                     settings = filter.Settings;
-                } catch
+                }
+                catch
                 {
                     created = true;
                 }
-                settings["Filter.Blur.Mask"] = true;
-                settings["Filter.Blur.Mask.Region.Top"] = blur.Top;
-                settings["Filter.Blur.Mask.Region.Bottom"] = blur.Bottom;
-                settings["Filter.Blur.Mask.Region.Left"] = blur.Left;
-                settings["Filter.Blur.Mask.Region.Right"] = blur.Right;
-                settings["Filter.Blur.Mask.Type"] = 0;
-                settings["Filter.Blur.Type"] = "dual_filtering";
-                settings["Filter.Blur.Size"] = blur.Size;
+
+                /* StreamFX settings*/
+                //settings["Filter.Blur.Mask"] = true;
+                //settings["Filter.Blur.Mask.Region.Top"] = blur.Top;
+                //settings["Filter.Blur.Mask.Region.Bottom"] = blur.Bottom;
+                //settings["Filter.Blur.Mask.Region.Left"] = blur.Left;
+                //settings["Filter.Blur.Mask.Region.Right"] = blur.Right;
+                //settings["Filter.Blur.Mask.Type"] = 0;
+                //settings["Filter.Blur.Type"] = "dual_filtering";
+                //settings["Filter.Blur.Size"] = blur.Size;
+
+                /* obs-composite-blur settings*/
+                settings["blur_algorithm"] = 1; //ALGO_GAUSSIAN
+                settings["blur_type"] = 1;
+                settings["effect_mask"] = 1; //EFFECT_MASK_TYPE_CROP
+                settings["effect_mask_crop_top"] = blur.Top;
+                settings["effect_mask_crop_bottom"] = blur.Bottom;
+                settings["effect_mask_crop_left"] = blur.Left;
+                settings["effect_mask_crop_right"] = blur.Right;
+
+
                 if (created)
                 {
-                    Plugin.obs.AddFilterToSource(sourceName, blur.Name, "streamfx-filter-blur", settings);
-                } else
+                    Plugin.obs.AddFilterToSource(sourceName, blur.Name, "obs_composite_blur", settings);
+                }
+                else
                 {
                     Plugin.obs.SetSourceFilterSettings(sourceName, blur.Name, settings);
                 }
@@ -449,7 +464,7 @@ namespace OBSPlugin
             return true;
         }
 
-        private unsafe Blur GetBlurFromNode(AtkResNode* node, string name, bool floating=false)
+        private unsafe Blur GetBlurFromNode(AtkResNode* node, string name, bool floating = false)
         {
             var position = floating ? GetFloatingNodePosition(node) : GetNodePosition(node);
             var scale = GetNodeScale(node);
@@ -479,12 +494,14 @@ namespace OBSPlugin
                     if (Config.BlurAsync)
                     {
                         BlurItemsToAdd.Add(blur);
-                    } else
+                    }
+                    else
                     {
                         OBSAddOrUpdateBlur(blur);
                     }
                 }
-            } else
+            }
+            else
             {
                 BlurDict[blur.Name] = blur;
                 BlurItemsToAdd.Add((Blur)blur.Clone());
@@ -520,7 +537,7 @@ namespace OBSPlugin
                     {
                         var childChildNode = childNode->GetAsAtkComponentNode()->Component->UldManager.NodeList[j];
                         var childChildIsVisible = GetNodeVisible(childChildNode);
-                        if (childChildNode != null && childChildNode->Type == NodeType.Text )
+                        if (childChildNode != null && childChildNode->Type == NodeType.Text)
                         {
                             if (childChildNode->NodeID == 16 && childChildIsVisible)
                             {
@@ -623,7 +640,7 @@ namespace OBSPlugin
                 var IsVisible = GetNodeVisible(childNode);
                 if (childNode != null && childNode->Type == NodeType.Text)
                 {
-                    if(IsVisible)
+                    if (IsVisible)
                     {
                         if (textIndex == 2)
                         {
@@ -734,7 +751,7 @@ namespace OBSPlugin
         private unsafe void UpdateHotbar()
         {
             if (!Config.HotbarBlur || !Config.BlurredHotbars.Any()) return;
-            foreach(var i in Config.BlurredHotbars)
+            foreach (var i in Config.BlurredHotbars)
             {
                 var suffix = (i - 1).ToString("00");
                 var hotbarAddress = Plugin.GameGui.GetAddonByName($"_ActionBar{(suffix == "00" ? string.Empty : suffix)}", 1);
@@ -788,7 +805,8 @@ namespace OBSPlugin
                 if (Plugin.Connected)
                 {
                     Plugin.obs.Disconnect();
-                } else
+                }
+                else
                 {
                     Plugin.TryConnect(Config.Address, Config.Password);
                 }
@@ -971,7 +989,7 @@ namespace OBSPlugin
                     if (hotbars.Any())
                     {
                         PluginLog.Debug("Turn off HotbarBlur");
-                        foreach(var i in hotbars)
+                        foreach (var i in hotbars)
                         {
                             i.Value.Enabled = false;
                             BlurItemsToAdd.Add((Blur)i.Value.Clone());
@@ -1215,8 +1233,8 @@ namespace OBSPlugin
         internal void SetRecordingDir()
         {
             SetFilenameFormatting();
-            if(Config.RecordDir == null || Config.RecordDir.Length == 0) return;
-            if(Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
+            if (Config.RecordDir == null || Config.RecordDir.Length == 0) return;
+            if (Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
 
             var curDir = Config.RecordDir;
             if (Config.IncludeTerritory && Plugin.obsRecordStatus == OutputState.Stopped)
@@ -1231,8 +1249,8 @@ namespace OBSPlugin
 
         internal void SetFilenameFormatting()
         {
-            if(Config.FilenameFormat == null || Config.FilenameFormat.Length == 0) return;
-            if(Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
+            if (Config.FilenameFormat == null || Config.FilenameFormat.Length == 0) return;
+            if (Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
 
             var filenameFormat = Config.FilenameFormat;
             if (Config.ZoneAsSuffix && Plugin.obsRecordStatus == OutputState.Stopped)
