@@ -295,11 +295,7 @@ namespace OBSPlugin
             if (Plugin.ClientState.LocalPlayer == null) return;
             try
             {
-                UpdateChatLog("ChatLog");
-                UpdateChatLog("ChatLogPanel_0");
-                UpdateChatLog("ChatLogPanel_1");
-                UpdateChatLog("ChatLogPanel_2");
-                UpdateChatLog("ChatLogPanel_3");
+                UpdateChatLog();
             }
             catch (Exception e)
             {
@@ -464,7 +460,7 @@ namespace OBSPlugin
             return true;
         }
 
-        private unsafe Blur GetBlurFromNode(AtkResNode* node, string name, bool floating = false)
+        private unsafe Blur GetBlurFromNode(AtkResNode* node, string name, bool floating = false, bool? enabled = null)
         {
             var position = floating ? GetFloatingNodePosition(node) : GetNodePosition(node);
             var scale = GetNodeScale(node);
@@ -479,7 +475,7 @@ namespace OBSPlugin
                 size.X,
                 size.Y);
             Blur blur = new(name, top, bottom, left, right, Config.BlurSize);
-            blur.Enabled = nodeVisible;
+            blur.Enabled = enabled == null ? nodeVisible : (bool)enabled;
             return blur;
         }
 
@@ -508,15 +504,46 @@ namespace OBSPlugin
             }
         }
 
-        private unsafe void UpdateChatLog(string ChatLogWindowName)
+        private unsafe void UpdateChatLog()
         {
             if (!Config.ChatLogBlur) return;
+
+            var panel = GetChatLogPanelVisiblity();
+
+            UpdateChatLogPanel("ChatLog", true);
+            //UpdateChatLogPanel("ChatLogPanel_0"); // Panel_0 always in main panel
+            UpdateChatLogPanel("ChatLogPanel_1", panel["ChatLogPanel_1"]);
+            UpdateChatLogPanel("ChatLogPanel_2", panel["ChatLogPanel_2"]);
+            UpdateChatLogPanel("ChatLogPanel_3", panel["ChatLogPanel_3"]);
+        }
+
+        private unsafe void UpdateChatLogPanel(string ChatLogWindowName, bool followUI = true)
+        {
             var chatLogAddress = Plugin.GameGui.GetAddonByName(ChatLogWindowName, 1);
             if (chatLogAddress == IntPtr.Zero) return;
             var chatLog = (AtkUnitBase*)chatLogAddress;
             if (chatLog->UldManager.NodeListCount <= 0) return;
             var chatLogNode = chatLog->UldManager.NodeList[0];
-            UpdateBlur(GetBlurFromNode(chatLogNode, ChatLogWindowName));
+            bool? visiblity = followUI ? null : false; // null is auto
+            UpdateBlur(GetBlurFromNode(chatLogNode, ChatLogWindowName, false, visiblity));
+        }
+
+        private unsafe Dictionary<string, bool> GetChatLogPanelVisiblity()
+        {
+
+            var chatLogAddress = Plugin.GameGui.GetAddonByName("ChatLog", 1);
+            if (chatLogAddress == IntPtr.Zero) throw new Exception("ChatLog get faild!");
+            var chatLog = (AtkUnitBase*)chatLogAddress;
+            if (chatLog->UldManager.NodeListCount <= 0) throw new Exception("ChatLog's children is empty!");
+
+            // when panel tag invisiblity, it means the sub panel is a standalone panel.
+            return new Dictionary<string, bool>
+            {
+                { "ChatLogPanel_1", !GetNodeVisible(chatLog->UldManager.NodeList[12]) },
+                { "ChatLogPanel_2", !GetNodeVisible(chatLog->UldManager.NodeList[11]) },
+                { "ChatLogPanel_3", !GetNodeVisible(chatLog->UldManager.NodeList[10]) }
+            };
+
         }
 
         private unsafe void UpdatePartyList()
