@@ -508,13 +508,21 @@ namespace OBSPlugin
         {
             if (!Config.ChatLogBlur) return;
 
-            var panel = GetChatLogPanelVisiblity();
+            try
+            {
+                var panel = GetChatLogPanelVisiblity();
 
-            UpdateChatLogPanel("ChatLog", true);
-            //UpdateChatLogPanel("ChatLogPanel_0"); // Panel_0 always in main panel
-            UpdateChatLogPanel("ChatLogPanel_1", panel["ChatLogPanel_1"]);
-            UpdateChatLogPanel("ChatLogPanel_2", panel["ChatLogPanel_2"]);
-            UpdateChatLogPanel("ChatLogPanel_3", panel["ChatLogPanel_3"]);
+                UpdateChatLogPanel("ChatLog");
+                //UpdateChatLogPanel("ChatLogPanel_0"); // Panel_0 always in main panel
+                UpdateChatLogPanel("ChatLogPanel_1", panel["ChatLogPanel_1"]);
+                UpdateChatLogPanel("ChatLogPanel_2", panel["ChatLogPanel_2"]);
+                UpdateChatLogPanel("ChatLogPanel_3", panel["ChatLogPanel_3"]);
+            }
+            catch (Exception e)
+            {
+                return;
+            }
+
         }
 
         private unsafe void UpdateChatLogPanel(string ChatLogWindowName, bool followUI = true)
