@@ -1094,10 +1094,11 @@ namespace OBSPlugin
         {
             // ImGui.Text("This plugin is still WIP, lot of functions are still in development.");
 
-            ImGui.Text("You need to install two plugins in your OBS for this plugin to work.");
+            ImGui.Text("You need to install two plugins in your OBS for this plugin to work."); 
 
             ImGui.Separator();
 
+            /*
             ImGui.Text("For OBS v27:");
             ImGui.BulletText("");
             ImGui.SameLine();
@@ -1140,27 +1141,26 @@ namespace OBSPlugin
             ImGui.Text("You need to set a password and provide it in the #Connection tab.");
 
             ImGui.Separator();
+            */
 
             ImGui.Text("For OBS v28+:");
             ImGui.BulletText("");
             ImGui.SameLine();
-            if (ImGui.Button("StreamFX 0.12.0 alpha"))
+            if (ImGui.Button("OBS Composite Blur"))
             {
                 try
                 {
                     Process.Start(new ProcessStartInfo()
                     {
-                        FileName = "https://github.com/Xaymar/obs-StreamFX/releases/tag/0.12.0a117",
+                        FileName = "https://github.com/FiniteSingularity/obs-composite-blur/releases/tag/v1.0.5",
                         UseShellExecute = true,
                     });
                 }
                 catch (Exception ex)
                 {
-                    PluginLog.Error(ex, "Could not open StreamFX url");
+                    PluginLog.Error(ex, "Could not open OBS Composite Blur url");
                 }
             }
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("You probably need to uninstall & delete the old plugin if you installed 0.11.x in OBS 27.");
             ImGui.SameLine();
             ImGui.Text("Just download and install.");
 
@@ -1182,7 +1182,7 @@ namespace OBSPlugin
                 }
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("The latest version of the build-in obs-websocket plugin in OBS 28 lacks some of the APIs used in this plugin and therefore will be pending untill fully supported.");
+                ImGui.SetTooltip("The latest version of the build-in obs-websocket plugin in OBS 28 lacks some of the APIs used in this plugin and therefore will be pending untill fully supported (targeted in OBS 30).");
             ImGui.SameLine();
             ImGui.Text("You need to set a password and provide it in the #Connection tab.");
 
