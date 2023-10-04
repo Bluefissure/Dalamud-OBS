@@ -1,5 +1,6 @@
 ﻿using Dalamud.Game.Command;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using OBSPlugin.Attributes;
 using System;
 using System.Collections.Generic;
@@ -12,11 +13,11 @@ namespace OBSPlugin
 {
     public class PluginCommandManager<THost> : IDisposable
     {
-        private readonly CommandManager commandManager;
+        private readonly ICommandManager commandManager;
         private readonly (string, CommandInfo)[] pluginCommands;
         private readonly THost host;
 
-        public PluginCommandManager(THost host, CommandManager commandManager)
+        public PluginCommandManager(THost host, ICommandManager commandManager)
         {
             this.commandManager = commandManager;
             this.host = host;

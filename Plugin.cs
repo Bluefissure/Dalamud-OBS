@@ -7,6 +7,7 @@ using Dalamud.Game.Gui;
 using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using OBSPlugin.Attributes;
 using OBSPlugin.Objects;
 using OBSWebsocketDotNet;
@@ -25,34 +26,38 @@ namespace OBSPlugin
 
         [PluginService]
         [RequiredVersion("1.0")]
-        internal CommandManager Commands { get; init; }
+        internal ICommandManager Commands { get; init; }
 
         [PluginService]
         [RequiredVersion("1.0")]
-        internal ChatGui Chat { get; init; }
+        internal IChatGui Chat { get; init; }
 
         [PluginService]
         [RequiredVersion("1.0")]
-        internal ClientState ClientState { get; init; }
+        internal IClientState ClientState { get; init; }
         [PluginService]
         [RequiredVersion("1.0")]
-        internal Framework Framework { get; init; }
+        internal IFramework Framework { get; init; }
 
         [PluginService]
         [RequiredVersion("1.0")]
-        internal GameGui GameGui { get; init; }
+        internal IGameGui GameGui { get; init; }
 
         [PluginService]
         [RequiredVersion("1.0")]
-        internal SigScanner SigScanner { get; init; }
+        internal ISigScanner SigScanner { get; init; }
 
         [PluginService]
         [RequiredVersion("1.0")]
-        internal Condition Condition { get; init; }
+        internal ICondition Condition { get; init; }
 
         [PluginService]
         [RequiredVersion("1.0")]
-        internal DataManager Data { get; init; }
+        internal IDataManager Data { get; init; }
+
+        [PluginService]
+        [RequiredVersion("1.0")]
+        internal IGameInteropProvider GameInteropProvider { get; init; }
 
         internal readonly PluginCommandManager<Plugin> commandManager;
         internal Configuration config { get; private set; }
@@ -176,8 +181,9 @@ namespace OBSPlugin
                 }
                 lastCountdownValue = this.state.CountDownValue;
             });
-            this.stopWatchHook = new StopWatchHook(PluginInterface, state, SigScanner, Condition);
+            this.stopWatchHook = new StopWatchHook(PluginInterface, state, SigScanner, Condition, GameInteropProvider);
 
+            PluginLog.Information("stopWatchHook");
             this.commandManager = new PluginCommandManager<Plugin>(this, Commands);
 
             if (config.Password.Length > 0)

@@ -451,9 +451,10 @@ namespace OBSPlugin
         private unsafe bool GetNodeVisible(AtkResNode* node)
         {
             if (node == null) return false;
+
             while (node != null)
             {
-                if ((node->Flags & (short)NodeFlags.Visible) != (short)NodeFlags.Visible) return false;
+                if (!node->IsVisible) return false;
                 node = node->ParentNode;
             }
 

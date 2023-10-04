@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using Dalamud.Game;
-using Dalamud.Game.ClientState;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Hooking;
 using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 
 namespace OBSPlugin.Objects
 {
@@ -14,8 +14,9 @@ namespace OBSPlugin.Objects
     {
         private readonly DalamudPluginInterface _pluginInterface;
         private readonly CombatState _state;
-        private readonly SigScanner _sig;
-        private readonly Condition _condition;
+        private readonly ISigScanner _sig;
+        private readonly ICondition _condition;
+        private readonly IGameInteropProvider _gameInteropProvider;
 
         private DateTime _combatTimeEnd;
 
@@ -38,14 +39,16 @@ namespace OBSPlugin.Objects
         public StopWatchHook(
             DalamudPluginInterface pluginInterface,
             CombatState state,
-            SigScanner sig,
-            Condition condition
+            ISigScanner sig,
+            ICondition condition,
+            IGameInteropProvider gameInteropProvider
         )
         {
             _pluginInterface = pluginInterface;
             _state = state;
             _sig = sig;
             _condition = condition;
+            _gameInteropProvider = gameInteropProvider;
             _countDown = 0;
             _countdownTimer = CountdownTimerFunc;
             HookCountdownPointer();
@@ -77,7 +80,8 @@ namespace OBSPlugin.Objects
             _countdownPtr = _sig.ScanText("48 89 5C 24 ?? 57 48 83 EC 40 8B 41");
             try
             {
-                _countdownTimerHook = new Hook<CountdownTimer>(_countdownPtr, _countdownTimer);
+                //_countdownTimerHook = new Hook<CountdownTimer>(_countdownPtr, _countdownTimer);
+                _countdownTimerHook = _gameInteropProvider.HookFromAddress<CountdownTimer>(_countdownPtr, _countdownTimer);
                 _countdownTimerHook.Enable();
             }
             catch (Exception e)
