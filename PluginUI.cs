@@ -828,10 +828,23 @@ namespace OBSPlugin
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
             ImGui.TextColored(Plugin.Connected ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
                 Plugin.Connected ? "Connected" : "Disconnected");
-            if (ImGui.InputText("Server Address", ref Config.Address, 128))
+            var address = Config.Address;
+            if (ImGui.InputText("Server Address", ref address, 128, ImGuiInputTextFlags.EnterReturnsTrue))
             {
+                if (int.TryParse(address, out int port))
+                {
+                    address = $"127.0.0.1:{port}";
+                }
+                if(!(address.StartsWith("ws://") || address.StartsWith("wss://")))
+                {
+                    address = "ws://" + address;
+                }
+                Config.Address = address;
                 Config.Save();
             }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Press Enter to Confirm");
+            
             if (ImGui.InputText("Password", ref Config.Password, 128, ImGuiInputTextFlags.Password))
             {
                 Config.Save();
