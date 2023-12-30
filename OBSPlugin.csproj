@@ -36,6 +36,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="DalamudPackager" Version="2.1.12" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <Compile Remove="lib\**" />
 	  <EmbeddedResource Remove="lib\**" />
 	  <None Remove="lib\**" />
@@ -43,10 +47,6 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="lib\obs-websocket-dotnet\obs-websocket-dotnet\obs-websocket-dotnet.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<PackageReference Include="DalamudPackager" Version="2.1.12" />
 	</ItemGroup>
 
 	<ItemGroup>
