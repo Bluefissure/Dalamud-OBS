@@ -208,13 +208,14 @@ namespace OBSPlugin
                 //settings["Filter.Blur.Size"] = blur.Size;
 
                 /* obs-composite-blur settings*/
-                settings["blur_algorithm"] = 1; //ALGO_GAUSSIAN
+                settings["blur_algorithm"] = 3; //ALGO_DUAL_KAWASE
                 settings["blur_type"] = 1;
                 settings["effect_mask"] = 1; //EFFECT_MASK_TYPE_CROP
                 settings["effect_mask_crop_top"] = blur.Top;
                 settings["effect_mask_crop_bottom"] = blur.Bottom;
                 settings["effect_mask_crop_left"] = blur.Left;
                 settings["effect_mask_crop_right"] = blur.Right;
+                settings["kawase_passes"] = blur.Size;
 
 
                 if (created)
