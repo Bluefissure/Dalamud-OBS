@@ -35,7 +35,7 @@ namespace OBSPlugin
         public int[] BlurredHotbars = Array.Empty<int>();
         // Record settings
         public string RecordDir = "";
-        public string FilenameFormat = "%CCYY-%MM-%DD %hh-%mm-%ss";
+        // public string FilenameFormat = "%CCYY-%MM-%DD %hh-%mm-%ss";
         public bool IncludeTerritory = true;
         public bool ZoneAsSuffix = false;
         public bool StartRecordOnCountDown = false;

@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net7.0</TargetFramework>
 		<LangVersion>9.0</LangVersion>
-		<Version>1.0.2.7</Version>
+		<Version>1.0.3.0</Version>
     <PublishSingleFile>true</PublishSingleFile>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
@@ -12,8 +12,8 @@
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<PlatformTarget>x64</PlatformTarget>
 		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-		<AssemblyVersion>1.0.2.7</AssemblyVersion>
-		<FileVersion>1.0.2.7</FileVersion>
+		<AssemblyVersion>1.0.3.0</AssemblyVersion>
+		<FileVersion>1.0.3.0</FileVersion>
 		<Authors>Bluefissure</Authors>
 		<Company>OtterCorp</Company>
 	</PropertyGroup>
@@ -36,10 +36,17 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="lib\**" />
+	  <EmbeddedResource Remove="lib\**" />
+	  <None Remove="lib\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="lib\obs-websocket-dotnet\obs-websocket-dotnet\obs-websocket-dotnet.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="DalamudPackager" Version="2.1.12" />
-		<PackageReference Include="obs-websocket-dotnet" Version="4.9.1">
-		  <GeneratePathProperty>true</GeneratePathProperty>
-		</PackageReference>
 	</ItemGroup>
 
 	<ItemGroup>

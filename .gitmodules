@@ -1,0 +1,3 @@
+[submodule "lib/obs-websocket-dotnet"]
+	path = lib/obs-websocket-dotnet
+	url = https://github.com/Bluefissure/obs-websocket-dotnet.git

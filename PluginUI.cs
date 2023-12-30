@@ -189,7 +189,7 @@ namespace OBSPlugin
                 bool created = false;
                 try
                 {
-                    filter = Plugin.obs.GetSourceFilterInfo(sourceName, blur.Name);
+                    filter = Plugin.obs.GetSourceFilter(sourceName, blur.Name);
                     settings = filter.Settings;
                 }
                 catch
@@ -220,13 +220,13 @@ namespace OBSPlugin
 
                 if (created)
                 {
-                    Plugin.obs.AddFilterToSource(sourceName, blur.Name, "obs_composite_blur", settings);
+                    Plugin.obs.CreateSourceFilter(sourceName, blur.Name, "obs_composite_blur", settings);
                 }
                 else
                 {
                     Plugin.obs.SetSourceFilterSettings(sourceName, blur.Name, settings);
                 }
-                Plugin.obs.SetSourceFilterVisibility(sourceName, blur.Name, blur.Enabled);
+                Plugin.obs.SetSourceFilterEnabled(sourceName, blur.Name, blur.Enabled);
             }
             catch (ErrorResponseException e)
             {
@@ -255,7 +255,7 @@ namespace OBSPlugin
             bool removed;
             try
             {
-                removed = Plugin.obs.RemoveFilterFromSource(Config.SourceName, blur.Name);
+                removed = Plugin.obs.RemoveSourceFilter(Config.SourceName, blur.Name);
                 PluginLog.Debug("Deleted blur: {0}", blur.Name);
             }
             catch (Exception e)
@@ -271,12 +271,12 @@ namespace OBSPlugin
             if (!Plugin.Connected) return false;
             try
             {
-                var filters = Plugin.obs.GetSourceFilters(Config.SourceName);
+                var filters = Plugin.obs.GetSourceFilterList(Config.SourceName);
                 foreach (var filter in filters)
                 {
                     if (filter.Name.StartsWith(blurNamePrefix))
                     {
-                        Plugin.obs.RemoveFilterFromSource(Config.SourceName, filter.Name);
+                        Plugin.obs.RemoveSourceFilter(Config.SourceName, filter.Name);
                     }
                 }
                 PluginLog.Debug("Deleted all blurs starting with {0}", blurNamePrefix);
@@ -853,6 +853,12 @@ namespace OBSPlugin
                 ImGui.SameLine();
                 ImGui.Text("Authentication failed, check the address and password!");
             }
+            if (Plugin.Connected)
+            {
+                ImGui.Separator();
+                ImGui.Text("OBS Plugin Version: " + Plugin.versionInfo.PluginVersion);
+                ImGui.Text("OBS Version: " + Plugin.versionInfo.OBSStudioVersion);
+            }
         }
 
         private void DrawBlurSettings()
@@ -1096,56 +1102,11 @@ namespace OBSPlugin
         {
             // ImGui.Text("This plugin is still WIP, lot of functions are still in development.");
 
-            ImGui.Text("You need to install two plugins in your OBS for this plugin to work."); 
+            ImGui.Text("You need to install the blur plugin in your OBS for the blur filters to work."); 
 
             ImGui.Separator();
 
-            /*
-            ImGui.Text("For OBS v27:");
-            ImGui.BulletText("");
-            ImGui.SameLine();
-            if (ImGui.Button("StreamFX 0.11.1"))
-            {
-                try
-                {
-                    Process.Start(new ProcessStartInfo()
-                    {
-                        FileName = "https://github.com/Xaymar/obs-StreamFX/releases/tag/0.11.1",
-                        UseShellExecute = true,
-                    });
-                }
-                catch (Exception ex)
-                {
-                    PluginLog.Error(ex, "Could not open StreamFX url");
-                }
-            }
-            ImGui.SameLine();
-            ImGui.Text("Just download and install.");
-
-            ImGui.BulletText("");
-            ImGui.SameLine();
-            if (ImGui.Button("OBS-websocket 4.9.1"))
-            {
-                try
-                {
-                    Process.Start(new ProcessStartInfo()
-                    {
-                        FileName = "https://github.com/obsproject/obs-websocket/releases/tag/4.9.1",
-                        UseShellExecute = true,
-                    });
-                }
-                catch (Exception ex)
-                {
-                    PluginLog.Error(ex, "Could not open OBS-websocket url");
-                }
-            }
-            ImGui.SameLine();
-            ImGui.Text("You need to set a password and provide it in the #Connection tab.");
-
-            ImGui.Separator();
-            */
-
-            ImGui.Text("For OBS v28+:");
+            ImGui.Text("For OBS v30+:");
             ImGui.BulletText("");
             ImGui.SameLine();
             if (ImGui.Button("OBS Composite Blur"))
@@ -1168,25 +1129,10 @@ namespace OBSPlugin
 
             ImGui.BulletText("");
             ImGui.SameLine();
-            if (ImGui.Button("OBS-websocket 4.9.1-compat"))
-            {
-                try
-                {
-                    Process.Start(new ProcessStartInfo()
-                    {
-                        FileName = "https://github.com/obsproject/obs-websocket/releases/tag/4.9.1-compat",
-                        UseShellExecute = true,
-                    });
-                }
-                catch (Exception ex)
-                {
-                    PluginLog.Error(ex, "Could not open OBS-websocket url");
-                }
-            }
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("The latest version of the build-in obs-websocket plugin in OBS 28 lacks some of the APIs used in this plugin and therefore will be pending untill fully supported (targeted in OBS 30).");
+            ImGui.Text("OBS-websocket 5.3.0");
             ImGui.SameLine();
-            ImGui.Text("You need to set a password and provide it in the #Connection tab.");
+            ImGui.TextWrapped("It's a built-in plugin in OBS v30, but you still need to set a password and enable it in the Tools -> " +
+                "OBS Websocket Server Settings in your OBS, and then provide the port & password in the #Connection tab.");
 
             ImGui.NewLine();
             ImGui.Text("If you encountered any bugs please submit issues in");
@@ -1217,19 +1163,19 @@ namespace OBSPlugin
 
             switch (Plugin.obsStreamStatus)
             {
-                case OutputState.Starting:
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STARTING:
                     obsButtonText = "Stream starting...";
                     break;
 
-                case OutputState.Started:
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STARTED:
                     obsButtonText = "Stop streaming";
                     break;
 
-                case OutputState.Stopping:
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STOPPING:
                     obsButtonText = "Stream stopping...";
                     break;
 
-                case OutputState.Stopped:
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED:
                     obsButtonText = "Start streaming";
                     break;
 
@@ -1243,7 +1189,7 @@ namespace OBSPlugin
                 if (!Plugin.Connected) return;
                 try
                 {
-                    Plugin.obs.ToggleStreaming();
+                    Plugin.obs.ToggleStream();
                 }
                 catch (Exception e)
                 {
@@ -1253,37 +1199,44 @@ namespace OBSPlugin
             }
 
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
-            ImGui.TextColored(Plugin.obsStreamStatus == OutputState.Started ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
-                Plugin.obsStreamStatus == OutputState.Started ? "Streaming" : "Stopped");
+            ImGui.TextColored(Plugin.obsStreamStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
+                Plugin.obsStreamStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? "Streaming" : "Stopped");
 
-            if (Plugin.streamStatus == null) return;
-
-            ImGui.Text($"Stream time : {Plugin.streamStatus.TotalStreamTime} sec");
-            ImGui.Text($"Kbits/sec : {Plugin.streamStatus.KbitsPerSec} kbit/s");
-            ImGui.Text($"Bytes/sec : {Plugin.streamStatus.BytesPerSec} bytes/s");
-            ImGui.Text($"Framerate : {Plugin.streamStatus.BytesPerSec} %");
-            ImGui.Text($"Strain : {Plugin.streamStatus.Strain} FPS");
-            ImGui.Text($"Dropped frames : {Plugin.streamStatus.DroppedFrames}");
-            ImGui.Text($"Total frames : {Plugin.streamStatus.TotalFrames}");
+            if (Plugin.streamStats != null && Plugin.streamStats.IsActive)
+            {
+                ImGui.Text($"Streaming : {Plugin.streamStats.IsActive}");
+                ImGui.Text($"Reconnecting : {Plugin.streamStats.IsReconnecting}");
+                ImGui.Text($"Stream Time : {Plugin.streamStats.TimeCode}");
+                ImGui.Text($"Congestion : {Plugin.streamStats.Congestion}");
+                ImGui.Text($"Total Frames : {Plugin.streamStats.TotalFrames}");
+                ImGui.Text($"Dropped Frames : {Plugin.streamStats.SkippedFrames}");
+                ImGui.Text($"Bytes Sent : {Plugin.streamStats.BytesSent}");
+            }
         }
 
         internal void SetRecordingDir()
         {
-            SetFilenameFormatting();
+            // SetFilenameFormatting();
             if (Config.RecordDir == null || Config.RecordDir.Length == 0) return;
             if (Plugin.ClientState == null || Plugin.ClientState.TerritoryType == 0) return;
 
             var curDir = Config.RecordDir;
-            if (Config.IncludeTerritory && Plugin.obsRecordStatus == OutputState.Stopped)
+            if (Config.IncludeTerritory && Plugin.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED)
             {
                 var terriIdx = Plugin.ClientState.TerritoryType;
                 var terriName = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx).Map.Value.PlaceName.Value.Name;
                 curDir = Path.Combine(curDir, terriName);
             }
 
-            Plugin.obs.SetRecordingFolder(curDir);
+            if (!Directory.Exists(curDir))
+            {
+                Directory.CreateDirectory(curDir);
+            }
+
+            Plugin.obs.SetRecordDirectory(curDir);
         }
 
+        /*
         internal void SetFilenameFormatting()
         {
             if (Config.FilenameFormat == null || Config.FilenameFormat.Length == 0) return;
@@ -1299,6 +1252,7 @@ namespace OBSPlugin
 
             Plugin.obs.SetFilenameFormatting(filenameFormat);
         }
+        */
 
         private void DrawRecord()
         {
@@ -1307,19 +1261,19 @@ namespace OBSPlugin
 
             switch (Plugin.obsRecordStatus)
             {
-                case OutputState.Starting:
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STARTING:
                     obsButtonText = "Record starting...";
                     break;
 
-                case OutputState.Started:
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STARTED:
                     obsButtonText = "Stop recording";
                     break;
 
-                case OutputState.Stopping:
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STOPPING:
                     obsButtonText = "Record stopping...";
                     break;
 
-                case OutputState.Stopped:
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED:
                     obsButtonText = "Start recording";
                     break;
 
@@ -1333,8 +1287,11 @@ namespace OBSPlugin
                 if (!Plugin.Connected) return;
                 try
                 {
-                    SetRecordingDir();
-                    Plugin.obs.ToggleRecording();
+                    if (Plugin.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED)
+                    {
+                        SetRecordingDir();
+                    }
+                    Plugin.obs.ToggleRecord();
                 }
                 catch (Exception e)
                 {
@@ -1344,15 +1301,15 @@ namespace OBSPlugin
             }
 
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
-            ImGui.TextColored(Plugin.obsRecordStatus == OutputState.Started ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
-                Plugin.obsRecordStatus == OutputState.Started ? "Recording" : "Stopped");
+            ImGui.TextColored(Plugin.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
+                Plugin.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? "Recording" : "Stopped");
 
             if (ImGui.InputText("Recordings Directory", ref Config.RecordDir, 256, ImGuiInputTextFlags.EnterReturnsTrue))
             {
                 Config.Save();
                 if (Plugin.Connected)
                 {
-                    Plugin.obs.SetRecordingFolder(Config.RecordDir);
+                    Plugin.obs.SetRecordDirectory(Config.RecordDir);
                     PluginLog.Information("Recording directory set to {0}", Config.RecordDir);
                 }
             }
@@ -1423,7 +1380,7 @@ namespace OBSPlugin
                 {
                     blur.Enabled = false;
                     PluginLog.Debug("Turn off {0}", blur.Name);
-                    Plugin.obs.RemoveFilterFromSource(Config.SourceName, blur.Name);
+                    Plugin.obs.RemoveSourceFilter(Config.SourceName, blur.Name);
                 }
             }
             isThreadRunning = false;

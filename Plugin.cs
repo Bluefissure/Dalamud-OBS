@@ -11,7 +11,9 @@ using Dalamud.Plugin.Services;
 using OBSPlugin.Attributes;
 using OBSPlugin.Objects;
 using OBSWebsocketDotNet;
+using OBSWebsocketDotNet.Communication;
 using OBSWebsocketDotNet.Types;
+using OBSWebsocketDotNet.Types.Events;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -59,6 +61,11 @@ namespace OBSPlugin
         [RequiredVersion("1.0")]
         internal IGameInteropProvider GameInteropProvider { get; init; }
 
+        internal string minimumPluginVersion = "5.3.0";
+
+        private CancellationTokenSource keepAliveTokenSource;
+        private readonly int keepAliveInterval = 500;
+
         internal readonly PluginCommandManager<Plugin> commandManager;
         internal Configuration config { get; private set; }
         internal readonly PluginUI ui;
@@ -66,9 +73,10 @@ namespace OBSPlugin
         internal OBSWebsocket obs;
         internal bool Connected = false;
         internal bool ConnectionFailed = false;
-        internal StreamStatus streamStatus;
-        internal OutputState obsStreamStatus = OutputState.Stopped;
-        internal OutputState obsRecordStatus = OutputState.Stopped;
+        internal ObsVersion versionInfo;
+        internal OutputStatus streamStats;
+        internal OutputState obsStreamStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
+        internal OutputState obsRecordStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
         internal readonly StopWatchHook stopWatchHook;
         internal CombatState state;
         internal float lastCountdownValue;
@@ -84,9 +92,9 @@ namespace OBSPlugin
             obs = new OBSWebsocket();
             obs.Connected += onConnect;
             obs.Disconnected += onDisconnect;
-            obs.StreamStatus += onStreamData;
-            obs.StreamingStateChanged += onStreamingStateChange;
-            obs.RecordingStateChanged += onRecordingStateChange;
+            //obs.StreamStatus += onStreamData;
+            obs.StreamStateChanged += onStreamingStateChange;
+            obs.RecordStateChanged += onRecordingStateChange;
 
             this.config = (Configuration)PluginInterface.GetPluginConfig() ?? new Configuration();
             this.config.Initialize(PluginInterface);
@@ -120,7 +128,7 @@ namespace OBSPlugin
                         {
                             PluginLog.Information("Auto start recroding");
                             this.ui.SetRecordingDir();
-                            this.obs.StartRecording();
+                            this.obs.StartRecord();
                         }
                     }
                     catch (ErrorResponseException err)
@@ -143,8 +151,8 @@ namespace OBSPlugin
                                 delay -= 1;
                             } while (delay > 0 || (config.DontStopInCutscene && (this.ClientState.LocalPlayer.OnlineStatus.Id == 15)));
                             PluginLog.Information("Auto stop recroding");
-                            this.ui.SetRecordingDir();
-                            this.obs.StopRecording();
+                            // this.ui.SetRecordingDir();
+                            this.obs.StopRecord();
                         }
                         catch (ErrorResponseException err)
                         {
@@ -172,7 +180,7 @@ namespace OBSPlugin
                     {
                         PluginLog.Information("Auto start recroding");
                         this.ui.SetRecordingDir();
-                        this.obs.StartRecording();
+                        this.obs.StartRecord();
                     }
                     catch (ErrorResponseException err)
                     {
@@ -228,42 +236,76 @@ namespace OBSPlugin
         {
             Connected = true;
             PluginLog.Information("OBS connected: {0}", config.Address);
-            var streamStatus = obs.GetStreamingStatus();
-            if (streamStatus.IsStreaming)
-                onStreamingStateChange(obs, OutputState.Started);
+            versionInfo = obs.GetVersion();
+            var pluginVersion = versionInfo.PluginVersion;
+            var pVersion = new Version(pluginVersion);
+            if (pVersion < new Version(minimumPluginVersion))
+            {
+                string errMsg = $"Invalid obs-websocket-plugin version, needs {minimumPluginVersion}, having {pluginVersion}";
+                PluginLog.Error(errMsg);
+                Chat.PrintError($"[OBSPlugin] {errMsg}");
+                this.obs.Disconnect();
+                return;
+            }
+            var streamStatus = obs.GetStreamStatus();
+            if (streamStatus.IsActive)
+                onStreamingStateChange(obs, new StreamStateChangedEventArgs(new OutputStateChanged() { IsActive = true, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STARTED) }));
             else
-                onStreamingStateChange(obs, OutputState.Stopped);
-            if (streamStatus.IsRecording)
-                onRecordingStateChange(obs, OutputState.Started);
+                onStreamingStateChange(obs, new StreamStateChangedEventArgs(new OutputStateChanged() { IsActive = false, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED) }));
+            var recordStatus = obs.GetRecordStatus();
+            if (recordStatus.IsRecording)
+                onRecordingStateChange(obs, new RecordStateChangedEventArgs(new RecordStateChanged() { IsActive = true, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STARTED) }));
             else
-                onRecordingStateChange(obs, OutputState.Stopped);
+                onRecordingStateChange(obs, new RecordStateChangedEventArgs(new RecordStateChanged() { IsActive = false, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED) }));
             if (config.RecordDir.Equals(String.Empty))
             {
-                var recordDir = obs.GetRecordingFolder();
+                var recordDir = obs.GetRecordDirectory();
                 config.RecordDir = recordDir;
-                config.FilenameFormat = obs.GetFilenameFormatting();
+                // config.FilenameFormat = obs.GetFilenameFormatting();
                 config.Save();
             }
+
+            keepAliveTokenSource = new CancellationTokenSource();
+            CancellationToken keepAliveToken = keepAliveTokenSource.Token;
+            Task statPollKeepAlive = Task.Factory.StartNew(() =>
+            {
+                while (true)
+                {
+                    Thread.Sleep(keepAliveInterval);
+                    if (keepAliveToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    UpdateStreamStats(obs.GetStreamStatus());
+                }
+            }, keepAliveToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
-        private void onDisconnect(object sender, EventArgs e)
+
+        private void UpdateStreamStats(OutputStatus data)
+        {
+            streamStats = data;
+        }
+
+        private void onDisconnect(object sender, ObsDisconnectionInfo e)
         {
             PluginLog.Information("OBS disconnected: {0}", config.Address);
             Connected = false;
         }
-
+        /*
         private void onStreamData(OBSWebsocket sender, StreamStatus data)
         {
             streamStatus = data;
         }
+        */
 
-        private void onStreamingStateChange(OBSWebsocket sender, OutputState newState)
+        private void onStreamingStateChange(object sender, StreamStateChangedEventArgs newState)
         {
-            obsStreamStatus = newState;
+            obsStreamStatus = newState.OutputState.State;
         }
 
-        private void onRecordingStateChange(OBSWebsocket sender, OutputState newState)
+        private void onRecordingStateChange(object sender, RecordStateChangedEventArgs newState)
         {
-            obsRecordStatus = newState;
+            obsRecordStatus = newState.OutputState.State;
         }
 
         [Command("/obs")]
@@ -315,7 +357,7 @@ namespace OBSPlugin
             if (obs != null && this.Connected)
             {
                 if (config.RecordDir.Length > 0)
-                    obs.SetRecordingFolder(config.RecordDir);
+                    obs.SetRecordDirectory(config.RecordDir);
                 obs.Disconnect();
             }
         }
