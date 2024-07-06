@@ -23,43 +23,35 @@ namespace OBSPlugin
     public class Plugin : IDalamudPlugin
     {
         [PluginService]
-        [RequiredVersion("1.0")]
-        internal DalamudPluginInterface PluginInterface { get; init; }
+        internal static IDalamudPluginInterface PluginInterface { get; private set; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
         internal ICommandManager Commands { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
         internal IChatGui Chat { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
         internal IClientState ClientState { get; init; }
         [PluginService]
-        [RequiredVersion("1.0")]
         internal IFramework Framework { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
         internal IGameGui GameGui { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
         internal ISigScanner SigScanner { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
         internal ICondition Condition { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
         internal IDataManager Data { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
         internal IGameInteropProvider GameInteropProvider { get; init; }
+        [PluginService]
+        internal static IPluginLog PluginLog { get; private set; }
 
         internal string minimumPluginVersion = "5.3.0";
 
@@ -97,7 +89,6 @@ namespace OBSPlugin
             obs.RecordStateChanged += onRecordingStateChange;
 
             this.config = (Configuration)PluginInterface.GetPluginConfig() ?? new Configuration();
-            this.config.Initialize(PluginInterface);
 
             this.ui = new PluginUI(this);
             PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
@@ -189,7 +180,7 @@ namespace OBSPlugin
                 }
                 lastCountdownValue = this.state.CountDownValue;
             });
-            this.stopWatchHook = new StopWatchHook(PluginInterface, state, SigScanner, Condition, GameInteropProvider);
+            this.stopWatchHook = new StopWatchHook(state, SigScanner, Condition, GameInteropProvider);
 
             PluginLog.Information("stopWatchHook");
             this.commandManager = new PluginCommandManager<Plugin>(this, Commands);

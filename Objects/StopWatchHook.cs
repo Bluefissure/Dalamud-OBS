@@ -12,7 +12,6 @@ namespace OBSPlugin.Objects
     // This class is from https://github.com/xorus/EngageTimer/blob/7a3d6eb/StopWatchHook.cs
     public class StopWatchHook : IDisposable
     {
-        private readonly DalamudPluginInterface _pluginInterface;
         private readonly CombatState _state;
         private readonly ISigScanner _sig;
         private readonly ICondition _condition;
@@ -37,14 +36,12 @@ namespace OBSPlugin.Objects
         private bool _shouldRestartCombatTimer = true;
 
         public StopWatchHook(
-            DalamudPluginInterface pluginInterface,
             CombatState state,
             ISigScanner sig,
             ICondition condition,
             IGameInteropProvider gameInteropProvider
         )
         {
-            _pluginInterface = pluginInterface;
             _state = state;
             _sig = sig;
             _condition = condition;
@@ -77,7 +74,7 @@ namespace OBSPlugin.Objects
 
         private void HookCountdownPointer()
         {
-            _countdownPtr = _sig.ScanText("48 89 5C 24 ?? 57 48 83 EC 40 8B 41");
+            _countdownPtr = _sig.ScanText("40 53 48 83 EC 40 80 79 38 00");
             try
             {
                 //_countdownTimerHook = new Hook<CountdownTimer>(_countdownPtr, _countdownTimer);
@@ -86,7 +83,7 @@ namespace OBSPlugin.Objects
             }
             catch (Exception e)
             {
-                PluginLog.Error("Could not hook to timer\n" + e);
+                Plugin.PluginLog.Error("Could not hook to timer\n" + e);
             }
         }
 
@@ -117,31 +114,11 @@ namespace OBSPlugin.Objects
         private void UpdateCountDown()
         {
             _state.CountingDown = false;
-            if (_countDown != 0)
-            {
-                var countDownPointerValue = Marshal.PtrToStructure<float>((IntPtr)_countDown + 0x2c);
-
-                // is last value close enough (workaround for floating point approx)
-                if (Math.Abs(countDownPointerValue - _lastCountDownValue) < 0.001f)
-                {
-                    _countDownStallTicks++;
-                }
-                else
-                {
-                    _countDownStallTicks = 0;
-                    _countDownRunning = true;
-                }
-
-                if (_countDownStallTicks > 50) _countDownRunning = false;
-
-                if (countDownPointerValue > 0 && _countDownRunning)
-                {
-                    _state.CountDownValue = Marshal.PtrToStructure<float>((IntPtr)_countDown + 0x2c);
-                    _state.CountingDown = true;
-                }
-
-                _lastCountDownValue = countDownPointerValue;
-            }
+            if (_countDown == 0) return;
+            var countDownActive = Marshal.PtrToStructure<byte>((IntPtr)_countDown + 0x38) == 1;
+            var countDownPointerValue = Marshal.PtrToStructure<float>((IntPtr)_countDown + 0x2c);
+            _state.CountingDown = countDownActive && countDownPointerValue > 0f;
+            _state.CountDownValue = countDownPointerValue;
         }
 
         [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]

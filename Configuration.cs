@@ -9,9 +9,6 @@ namespace OBSPlugin
     {
         public int Version { get; set; }
 
-        // Add any other properties or methods here.
-        [JsonIgnore] private DalamudPluginInterface pluginInterface;
-
         public bool Enabled = true;
         public bool UIDetection = true;
         public string SourceName = "FFXIV";
@@ -45,14 +42,10 @@ namespace OBSPlugin
         public int StopRecordOnCombatDelay = 5;
         public bool DontStopInCutscene = true;
 
-        public void Initialize(DalamudPluginInterface pluginInterface)
-        {
-            this.pluginInterface = pluginInterface;
-        }
 
         public void Save()
         {
-            this.pluginInterface.SavePluginConfig(this);
+            Plugin.PluginInterface.SavePluginConfig(this);
         }
     }
 }
