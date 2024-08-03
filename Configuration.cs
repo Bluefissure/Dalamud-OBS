@@ -12,7 +12,7 @@ namespace OBSPlugin
         public bool Enabled = true;
         public bool UIDetection = true;
         public string SourceName = "FFXIV";
-        public string Address = "ws://127.0.0.1:4444/";
+        public string Address = "ws://127.0.0.1:4455/"; // Default port was updated by obs-websocket. 
         public string Password = "";
         // Blur settings
         public int BlurSize = 3;

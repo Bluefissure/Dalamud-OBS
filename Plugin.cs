@@ -1,4 +1,4 @@
-﻿using Dalamud.Data;
+using Dalamud.Data;
 using Dalamud.Game;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.ClientState.Conditions;
@@ -8,6 +8,7 @@ using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Common.Lua;
 using OBSPlugin.Attributes;
 using OBSPlugin.Objects;
 using OBSWebsocketDotNet;
@@ -17,6 +18,7 @@ using OBSWebsocketDotNet.Types.Events;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using static FFXIVClientStructs.FFXIV.Client.System.String.Utf8String.Delegates;
 
 namespace OBSPlugin
 {
@@ -117,7 +119,7 @@ namespace OBSPlugin
                         }
                         else
                         {
-                            PluginLog.Information("Auto start recroding");
+                            PluginLog.Information("Auto start recording");
                             this.ui.SetRecordingDir();
                             this.obs.StartRecord();
                         }
@@ -141,7 +143,7 @@ namespace OBSPlugin
                                 Thread.Sleep(1000);
                                 delay -= 1;
                             } while (delay > 0 || (config.DontStopInCutscene && (this.ClientState.LocalPlayer.OnlineStatus.Id == 15)));
-                            PluginLog.Information("Auto stop recroding");
+                            PluginLog.Information("Auto stop recording");
                             // this.ui.SetRecordingDir();
                             this.obs.StopRecord();
                         }
@@ -223,6 +225,7 @@ namespace OBSPlugin
                 _connectLock = false;
             }
         }
+        
         private void onConnect(object sender, EventArgs e)
         {
             Connected = true;
@@ -282,6 +285,7 @@ namespace OBSPlugin
             PluginLog.Information("OBS disconnected: {0}", config.Address);
             Connected = false;
         }
+       
         /*
         private void onStreamData(OBSWebsocket sender, StreamStatus data)
         {
@@ -303,31 +307,312 @@ namespace OBSPlugin
         [HelpMessage("Open OBSPlugin config panel.")]
         public unsafe void ObsCommand(string command, string args)
         {
-            // You may want to assign these references to private variables for convenience.
-            // Keep in mind that the local player does not exist until after logging in.
-            if (args == "" || args == "config")
+            if (string.IsNullOrEmpty(args))
             {
                 this.ui.IsVisible = !this.ui.IsVisible;
+                return;
             }
-            else if (args == "on")
+
+            string[] commandParts = args.Split(' ', 2);
+            string mainCommand = commandParts[0];
+            string commandArgs = commandParts.Length > 1 ? commandParts[1] : "";
+
+            // Switching to a switch statement makes adding new main-commands easier and neater.
+            switch (mainCommand)
             {
-                this.config.Enabled = true;
-                this.config.Save();
+                case "config":
+                    this.ui.IsVisible = !this.ui.IsVisible;
+                    break;
+
+                case "on":
+                    this.config.Enabled = true;
+                    this.config.Save();
+                    break;
+
+                case "off":
+                    this.config.Enabled = false;
+                    this.config.Save();
+                    break;
+
+                case "toggle":
+                    this.config.Enabled = !this.config.Enabled;
+                    this.config.Save();
+                    break;
+
+                case "update":
+                    this.ui.UpdateGameUI();
+                    break;
+
+                case "replay":
+                    HandleReplayCommand(commandArgs);
+                    break;
+
+                case "stream":
+                    HandleStreamCommand(commandArgs);
+                    break;
+
+                case "record":
+                    HandleRecordCommand(commandArgs);
+                    break;
+
+                case "audio":
+                    HandleAudioCommand(commandArgs);
+                    break;
+
+                case "scene":
+                    HandleSceneCommand(commandArgs);
+                    break;
+
+                default:
+                    Chat.PrintError($"[OBSPlugin] {args} is not a valid command.");
+                    break;
             }
-            else if (args == "off")
+        }
+
+        // Handles replay buffer options.
+        private void HandleReplayCommand(string args)
+        {
+            if (string.IsNullOrWhiteSpace(args))
             {
-                this.config.Enabled = false;
-                this.config.Save();
+                Chat.PrintError("[OBSPlugin] Replay command requires a subcommand: 'start', 'save', or 'stop'.");
+                return;
             }
-            else if (args == "toggle")
+
+            switch (args.ToLowerInvariant())
             {
-                this.config.Enabled = !this.config.Enabled;
-                this.config.Save();
+                case "start":
+                    if (!obs.GetReplayBufferStatus())
+                    {
+                        obs.StartReplayBuffer();
+                        Chat.Print("[OBSPlugin] Started replay buffer.");
+                    }
+                    else
+                    {
+                        Chat.PrintError("[OBSPlugin] The replay buffer is already active.");
+                    }
+                    break;
+
+                case "save":
+                    if (obs.GetReplayBufferStatus())
+                    {
+                        obs.SaveReplayBuffer();
+                        Chat.Print("[OBSPlugin] Replay saved: " + obs.GetLastReplayBufferReplay());
+                    }
+                    else
+                    {
+                        Chat.PrintError("[OBSPlugin] The replay buffer is not active.");
+                    }
+                    break;
+
+                case "stop":
+                    if (obs.GetReplayBufferStatus())
+                    {
+                        obs.StopReplayBuffer();
+                        Chat.Print("[OBSPlugin] Stopped replay buffer.");
+                    }
+                    else
+                    {
+                        Chat.PrintError("[OBSPlugin] The replay buffer is not active.");
+                    }
+                    break;
+
+                default:
+                    Chat.PrintError($"[OBSPlugin] '{args}' is not a valid subcommand. Valid subcommands are 'start', 'save', or 'stop'.");
+                    break;
             }
-            else if (args == "update")
+        }
+
+        // Handles stream activity options.
+        private void HandleStreamCommand(string args)
+        {
+            if (string.IsNullOrWhiteSpace(args))
             {
-                this.ui.UpdateGameUI();
+                Chat.PrintError("[OBSPlugin] Stream command requires a subcommand: 'start' or 'stop'.");
+                return;
             }
+
+            switch (args.ToLowerInvariant())
+            {
+                case "start":
+                    if (!obs.GetStreamStatus().IsActive)
+                    {
+                        obs.StartStream();
+                        Chat.Print("[OBSPlugin] Started stream.");
+                    }
+                    else
+                    {
+                        Chat.PrintError("[OBSPlugin] The stream is already active.");
+                    }
+                    break;
+
+                case "stop":
+                    if (obs.GetStreamStatus().IsActive)
+                    {
+                        obs.StopStream();
+                        Chat.Print("[OBSPlugin] Stopped stream.");
+                    }
+                    else
+                    {
+                        Chat.PrintError("[OBSPlugin] The stream is not active.");
+                    }
+                    break;
+
+                default:
+                    Chat.PrintError($"[OBSPlugin] '{args}' is not a valid subcommand. Valid subcommands are 'start' or 'stop'.");
+                    break;
+            }
+        }
+
+        // Handles recording options.
+        private void HandleRecordCommand(string args)
+        {
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                Chat.PrintError("[OBSPlugin] Record command requires a subcommand: 'start', 'stop', 'pause', or 'resume'.");
+                return;
+            }
+
+            switch (args.ToLowerInvariant())
+            {
+                case "start":
+                    if (!obs.GetRecordStatus().IsRecording)
+                    {
+                        obs.StartRecord();
+                        Chat.Print("[OBSPlugin] Started recording.");
+                    }
+                    else
+                    {
+                        Chat.PrintError("[OBSPlugin] Recording is already active.");
+                    }
+                    break;
+
+                case "stop":
+                    if (obs.GetRecordStatus().IsRecording)
+                    {
+                        obs.StopRecord();
+                        Chat.Print("[OBSPlugin] Stopped recording.");
+                    }
+                    else
+                    {
+                        Chat.PrintError("[OBSPlugin] Recording is not active.");
+                    }
+                    break;
+
+                case "pause":
+                    if (!obs.GetRecordStatus().IsRecordingPaused && obs.GetRecordStatus().IsRecording)
+                    {
+                        obs.PauseRecord();
+                        Chat.Print("[OBSPlugin] Paused recording.");
+                    }
+                    else if (obs.GetRecordStatus().IsRecordingPaused)
+                    {
+                        Chat.PrintError("[OBSPlugin] Recording is already paused.");
+                    }
+                    else
+                    {
+                        Chat.PrintError("[OBSPlugin] Cannot pause as recording is not active.");
+                    }
+                    break;
+
+                case "resume":
+                    if (obs.GetRecordStatus().IsRecordingPaused)
+                    {
+                        obs.ResumeRecord();
+                        Chat.Print("[OBSPlugin] Resumed recording.");
+                    }
+                    else if (!obs.GetRecordStatus().IsRecording)
+                    {
+                        Chat.PrintError("[OBSPlugin] Cannot resume as recording is not active.");
+                    }
+                    else
+                    {
+                        Chat.PrintError("[OBSPlugin] Recording is not paused.");
+                    }
+                    break;
+
+                default:
+                    Chat.PrintError($"[OBSPlugin] '{args}' is not a valid subcommand. Valid subcommands are 'start', 'stop', 'pause', or 'resume'.");
+                    break;
+            }
+        }
+
+        // Allows for muting and unmuting of an audio source.
+        private void HandleAudioCommand(string args)
+        {
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                Chat.PrintError("[OBSPlugin] Command requires a subcommand followed by an audio device name: 'mute <device_name>' or 'unmute <device_name>'.");
+                return;
+            }
+
+            int firstSpaceIndex = args.IndexOf(' ');
+
+            string command = args;
+            string systemName = null;
+
+            if (firstSpaceIndex != -1)
+            {
+                command = args.Substring(0, firstSpaceIndex).ToLowerInvariant();
+                systemName = args.Substring(firstSpaceIndex + 1).Trim();
+            }
+
+            if (command.Equals("mute") || command.Equals("unmute"))
+            {
+                if (string.IsNullOrWhiteSpace(systemName))
+                {
+                    Chat.PrintError("[OBSPlugin] Audio commands need an audio device name to function.");
+                    return;
+                }
+
+                switch (command)
+                {
+                    case "mute":
+                        obs.SetInputMute(systemName, true);
+                        Chat.Print($"[OBSPlugin] Muted {systemName}.");
+                        break;
+
+                    case "unmute":
+                        obs.SetInputMute(systemName, false);
+                        Chat.Print($"[OBSPlugin] Unmuted {systemName}.");
+                        break;
+                }
+            }
+            else
+            {
+                Chat.PrintError("[OBSPlugin] Valid commands are 'mute <device_name>' and 'unmute <device_name>'.");
+            }
+        }
+
+        // Allows us to manipulate/jump between scenes as we like.
+        private void HandleSceneCommand(string args)
+        {
+            const string changeKeyword = "change";
+
+            int firstSpaceIndex = args.IndexOf(' ');
+
+            if (firstSpaceIndex == -1)
+            {
+                Chat.PrintError("[OBSPlugin] Valid subcommand is 'change <scene_name>'");
+                return;
+            }
+
+            string command = args.Substring(0, firstSpaceIndex);
+            string sceneName = args.Substring(firstSpaceIndex + 1).Trim();
+
+            if (!command.Equals(changeKeyword))
+            {
+                Chat.PrintError("[OBSPlugin] Valid subcommand is 'change <scene_name>'");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(sceneName))
+            {
+                Chat.PrintError("[OBSPlugin] Please provide a scene name to change to.");
+                return;
+            }
+
+            obs.SetCurrentProgramScene(sceneName);
+            Chat.Print($"[OBSPlugin] Scene changed to {sceneName}.");
         }
 
         #region IDisposable Support
