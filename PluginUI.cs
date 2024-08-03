@@ -15,6 +15,8 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Lumina.Excel.GeneratedSheets;
 using System.IO;
+using Dalamud.Plugin.Services;
+using System.Threading;
 
 namespace OBSPlugin
 {
@@ -136,6 +138,15 @@ namespace OBSPlugin
                         if (ImGui.BeginChild("Record##SettingsRegion"))
                         {
                             DrawRecord();
+                            ImGui.EndChild();
+                        }
+                        ImGui.EndTabItem();
+                    }
+                    if (ImGui.BeginTabItem("Replay##Tab"))
+                    {
+                        if (ImGui.BeginChild("Replay##SettingsRegion"))
+                        {
+                            DrawReplay();
                             ImGui.EndChild();
                         }
                         ImGui.EndTabItem();
@@ -1249,6 +1260,46 @@ namespace OBSPlugin
             Plugin.obs.SetRecordDirectory(curDir);
         }
 
+        internal void ResetReplayBufferRecordingDir()
+        {
+            if (!Plugin.config.Enabled) return;
+            bool needToResume = false;
+            if (Plugin.obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+            {
+                needToResume = true;
+                Plugin.obs.StopReplayBuffer();
+            }
+            SetRecordingDir();
+            if (needToResume)
+            {
+                new Task(() =>
+                {
+                    var leftTimes = 5;
+                    while (leftTimes > 0)
+                    {
+                        if (Plugin.obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+                        {
+                            break;
+                        }
+                        try
+                        {
+                            Plugin.obs.StartReplayBuffer();
+                        }
+                        catch (ErrorResponseException err)
+                        {
+                            Plugin.PluginLog.Warning("Start replay buffer error: {0}", err);
+                        }
+                        leftTimes -= 1;
+                        Thread.Sleep(1000);
+                    }
+                    if (leftTimes == 0)
+                    {
+                        Plugin.PluginLog.Error("Cannot resume replay buffer...");
+                    }
+                }).Start();
+            }
+        }
+
         /*
         internal void SetFilenameFormatting()
         {
@@ -1383,6 +1434,98 @@ namespace OBSPlugin
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("If selected, will not stop recording if another starts before stop countdown.");
+        }
+
+        private void DrawReplay()
+        {
+
+            string obsButtonText;
+
+            switch (Plugin.obsReplayBufferStatus)
+            {
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STARTING:
+                    obsButtonText = "Replay buffer starting...";
+                    break;
+
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STARTED:
+                    obsButtonText = "Stop replay buffer";
+                    break;
+
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STOPPING:
+                    obsButtonText = "Replay buffer stopping...";
+                    break;
+
+                case OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED:
+                    obsButtonText = "Start replay buffer";
+                    break;
+
+                default:
+                    obsButtonText = "State unknown";
+                    break;
+            }
+
+            if (ImGui.Button(obsButtonText))
+            {
+                if (!Plugin.Connected) return;
+                try
+                {
+                    Plugin.obs.ToggleReplayBuffer();
+                }
+                catch (Exception e)
+                {
+                    Plugin.PluginLog.Error("Error on toggle replay buffer: {0}", e);
+                    Plugin.Chat.PrintError("[OBSPlugin] Error on toggle replay buffer, check log for details.");
+                }
+            }
+            ImGui.SameLine(ImGui.GetColumnWidth() - 80);
+            ImGui.TextColored(Plugin.obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
+                Plugin.obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? "Replaying" : "Stopped");
+
+            if (ImGui.Checkbox("Zone as sub folder", ref Config.ResetReplayBufferDirByTerritory))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will automatically set replay buffer directory for different territory.\n" +
+                    "It will make the replay buffer stopped and restarted automatically when changing territories.\n" +
+                    "Otherwise all the replay buffer will be saved to the folder where it started.");
+
+            if (ImGui.Checkbox("Save Replay Buffer On Combat Over In", ref Config.SaveReplayBufferOnCombat))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will automatically save replay buffer when combat is over in ");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(-1);
+            if (ImGui.DragInt("", ref Config.SaveReplayBufferOnCombatDelay, 1, 0, 300, "%d second(s)"))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Delay of \"Save Replay Buffer On Combat Over\" in seconds.");
+
+            if (Plugin.obsReplayBufferStatus != OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+            {
+                ImGui.BeginDisabled();
+            }
+            if (ImGui.Button("Save replay buffer"))
+            {
+                if (!Plugin.Connected) return;
+                try
+                {
+                    Plugin.obs.SaveReplayBuffer();
+                }
+                catch (Exception e)
+                {
+                    Plugin.PluginLog.Error("Error on save replay buffer: {0}", e);
+                    Plugin.Chat.PrintError("[OBSPlugin] Error on save replay buffer, check log for details.");
+                }
+            }
+            if (Plugin.obsReplayBufferStatus != OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+            {
+                ImGui.EndDisabled();
+            }
         }
 
         internal void Dispose()

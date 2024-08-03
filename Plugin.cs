@@ -71,6 +71,7 @@ namespace OBSPlugin
         internal OutputStatus streamStats;
         internal OutputState obsStreamStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
         internal OutputState obsRecordStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
+        internal OutputState obsReplayBufferStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
         internal readonly StopWatchHook stopWatchHook;
         internal CombatState state;
         internal float lastCountdownValue;
@@ -89,6 +90,7 @@ namespace OBSPlugin
             //obs.StreamStatus += onStreamData;
             obs.StreamStateChanged += onStreamingStateChange;
             obs.RecordStateChanged += onRecordingStateChange;
+            obs.ReplayBufferStateChanged += onReplayBufferStateChange;
 
             this.config = (Configuration)PluginInterface.GetPluginConfig() ?? new Configuration();
 
@@ -129,35 +131,60 @@ namespace OBSPlugin
                         PluginLog.Warning("Start Recording Error: {0}", err);
                     }
                 }
-                else if (!this.state.InCombat && config.StopRecordOnCombat)
+                else if (!this.state.InCombat)
                 {
-                    new Task(() =>
+                    if (config.StopRecordOnCombat)
                     {
-                        try
+                        new Task(() =>
                         {
-                            _stoppingRecord = true;
-                            var delay = config.StopRecordOnCombatDelay;
-                            do
+                            try
                             {
-                                _cts.Token.ThrowIfCancellationRequested();
-                                Thread.Sleep(1000);
-                                delay -= 1;
-                            } while (delay > 0 || (config.DontStopInCutscene && (this.ClientState.LocalPlayer.OnlineStatus.Id == 15)));
-                            PluginLog.Information("Auto stop recording");
-                            // this.ui.SetRecordingDir();
-                            this.obs.StopRecord();
-                        }
-                        catch (ErrorResponseException err)
+                                _stoppingRecord = true;
+                                var delay = config.StopRecordOnCombatDelay;
+                                do
+                                {
+                                    _cts.Token.ThrowIfCancellationRequested();
+                                    Thread.Sleep(1000);
+                                    delay -= 1;
+                                } while (delay > 0 || (config.DontStopInCutscene && (this.ClientState.LocalPlayer.OnlineStatus.Id == 15)));
+                                PluginLog.Information("Auto stop recording");
+                                // this.ui.SetRecordingDir();
+                                this.obs.StopRecord();
+                            }
+                            catch (ErrorResponseException err)
+                            {
+                                PluginLog.Warning("Stop Recording Error: {0}", err);
+                            }
+                            finally
+                            {
+                                _stoppingRecord = false;
+                                _cts.Dispose();
+                                _cts = new();
+                            }
+                        }, _cts.Token).Start();
+                    }
+                    if (config.SaveReplayBufferOnCombat)
+                    {
+                        new Task(() =>
                         {
-                            PluginLog.Warning("Stop Recording Error: {0}", err);
-                        }
-                        finally
-                        {
-                            _stoppingRecord = false;
-                            _cts.Dispose();
-                            _cts = new();
-                        }
-                    }, _cts.Token).Start();
+                            try
+                            {
+                                var delay = config.SaveReplayBufferOnCombatDelay;
+                                do
+                                {
+                                    _cts.Token.ThrowIfCancellationRequested();
+                                    Thread.Sleep(1000);
+                                    delay -= 1;
+                                } while (delay > 0);
+                                PluginLog.Information("Auto save replay buffer");
+                                this.obs.SaveReplayBuffer();
+                            }
+                            catch (ErrorResponseException err)
+                            {
+                                PluginLog.Warning("Stop Recording Error: {0}", err);
+                            }
+                        }).Start();
+                    }
                 }
             });
             state.CountingDownChanged += new EventHandler((Object sender, EventArgs e) =>
@@ -191,6 +218,8 @@ namespace OBSPlugin
             {
                 TryConnect(config.Address, config.Password);
             }
+
+            ClientState.TerritoryChanged += onTerritoryChanged;
         }
 
 
@@ -251,6 +280,11 @@ namespace OBSPlugin
                 onRecordingStateChange(obs, new RecordStateChangedEventArgs(new RecordStateChanged() { IsActive = true, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STARTED) }));
             else
                 onRecordingStateChange(obs, new RecordStateChangedEventArgs(new RecordStateChanged() { IsActive = false, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED) }));
+            var replayBufferActive = obs.GetReplayBufferStatus();
+            if (replayBufferActive)
+                onReplayBufferStateChange(obs, new ReplayBufferStateChangedEventArgs(new OutputStateChanged() { IsActive = true, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STARTED) }));
+            else
+                onReplayBufferStateChange(obs, new ReplayBufferStateChangedEventArgs(new OutputStateChanged() { IsActive = false, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED) }));
             if (config.RecordDir.Equals(String.Empty))
             {
                 var recordDir = obs.GetRecordDirectory();
@@ -266,11 +300,22 @@ namespace OBSPlugin
                 while (true)
                 {
                     Thread.Sleep(keepAliveInterval);
-                    if (keepAliveToken.IsCancellationRequested)
+                    try
                     {
-                        break;
+                        if (!obs.IsConnected)
+                        {
+                            continue;
+                        }
+                        if (keepAliveToken.IsCancellationRequested)
+                        {
+                            break;
+                        }
+                        UpdateStreamStats(obs.GetStreamStatus());
                     }
-                    UpdateStreamStats(obs.GetStreamStatus());
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error("Error getting obs streaming status", ex);
+                    }
                 }
             }, keepAliveToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
@@ -301,6 +346,11 @@ namespace OBSPlugin
         private void onRecordingStateChange(object sender, RecordStateChangedEventArgs newState)
         {
             obsRecordStatus = newState.OutputState.State;
+        }
+
+        private void onReplayBufferStateChange(object sender, ReplayBufferStateChangedEventArgs newState)
+        {
+            obsReplayBufferStatus = newState.OutputState.State;
         }
 
         [Command("/obs")]
@@ -381,7 +431,7 @@ namespace OBSPlugin
             switch (args.ToLowerInvariant())
             {
                 case "start":
-                    if (!obs.GetReplayBufferStatus())
+                    if (obsReplayBufferStatus != OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
                     {
                         obs.StartReplayBuffer();
                         Chat.Print("[OBSPlugin] Started replay buffer.");
@@ -393,7 +443,7 @@ namespace OBSPlugin
                     break;
 
                 case "save":
-                    if (obs.GetReplayBufferStatus())
+                    if (obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
                     {
                         obs.SaveReplayBuffer();
                         Chat.Print("[OBSPlugin] Replay saved: " + obs.GetLastReplayBufferReplay());
@@ -405,7 +455,7 @@ namespace OBSPlugin
                     break;
 
                 case "stop":
-                    if (obs.GetReplayBufferStatus())
+                    if (obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
                     {
                         obs.StopReplayBuffer();
                         Chat.Print("[OBSPlugin] Stopped replay buffer.");
@@ -615,6 +665,25 @@ namespace OBSPlugin
             Chat.Print($"[OBSPlugin] Scene changed to {sceneName}.");
         }
 
+        internal void onTerritoryChanged(ushort tid)
+        {
+            if (!Connected || !config.Enabled) return;
+            if (config.ResetReplayBufferDirByTerritory && obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+            {
+                if (obsRecordStatus != OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+                {
+                    new Task(() =>
+                    {
+                        ui.ResetReplayBufferRecordingDir();
+                    }).Start();
+                }
+                else
+                {
+                    PluginLog.Debug("Recording is active, cannot reset replay buffer dir.");
+                }
+            }
+        }
+
         #region IDisposable Support
         protected virtual void Dispose(bool disposing)
         {
@@ -627,6 +696,8 @@ namespace OBSPlugin
             PluginInterface.SavePluginConfig(this.config);
 
             PluginInterface.UiBuilder.Draw -= this.ui.Draw;
+
+            ClientState.TerritoryChanged -= onTerritoryChanged;
 
             this.ui.Dispose();
 
