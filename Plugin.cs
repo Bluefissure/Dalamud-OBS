@@ -394,22 +394,27 @@ namespace OBSPlugin
                     break;
 
                 case "replay":
+                    if (!Connected) break;
                     HandleReplayCommand(commandArgs);
                     break;
 
                 case "stream":
+                    if (!Connected) break;
                     HandleStreamCommand(commandArgs);
                     break;
 
                 case "record":
+                    if (!Connected) break;
                     HandleRecordCommand(commandArgs);
                     break;
 
                 case "audio":
+                    if (!Connected) break;
                     HandleAudioCommand(commandArgs);
                     break;
 
                 case "scene":
+                    if (!Connected) break;
                     HandleSceneCommand(commandArgs);
                     break;
 
