@@ -13,7 +13,7 @@ using System.Numerics;
 using System.Linq;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using System.IO;
 using Dalamud.Plugin.Services;
 using System.Threading;
@@ -1249,7 +1249,7 @@ namespace OBSPlugin
             {
                 var terriIdx = Plugin.ClientState.TerritoryType;
                 var terriName = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx).Map.Value.PlaceName.Value.Name;
-                curDir = Path.Combine(curDir, terriName);
+                curDir = Path.Combine(curDir, terriName.ToString());
             }
 
             if (!Directory.Exists(curDir))

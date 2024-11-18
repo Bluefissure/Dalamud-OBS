@@ -146,7 +146,7 @@ namespace OBSPlugin
                                     _cts.Token.ThrowIfCancellationRequested();
                                     Thread.Sleep(1000);
                                     delay -= 1;
-                                } while (delay > 0 || (config.DontStopInCutscene && (this.ClientState.LocalPlayer.OnlineStatus.Id == 15)));
+                                } while (delay > 0 || (config.DontStopInCutscene && (this.ClientState.LocalPlayer.OnlineStatus.RowId == 15)));
                                 PluginLog.Information("Auto stop recording");
                                 // this.ui.SetRecordingDir();
                                 this.obs.StopRecord();
