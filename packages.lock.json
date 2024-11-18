@@ -10,9 +10,9 @@
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[8.0.8, )",
-        "resolved": "8.0.8",
-        "contentHash": "P8wR6MUWwYXIjPJuBaZgo5zlI/GWI6QEAo6NyVIbPefa9CCkohYu7dP2rD/mrqnjEqfRHyl+h9VZrDoGpELqYg=="
+        "requested": "[8.0.11, )",
+        "resolved": "8.0.11",
+        "contentHash": "zk5lnZrYJgtuJG8L4v17Ej8rZ3PUcR2iweNV08BaO5LbYHIi2wNaVNcJoLxvqgQdnjLlKnCCfVGLDr6QHeAarQ=="
       },
       "Newtonsoft.Json": {
         "type": "Transitive",
