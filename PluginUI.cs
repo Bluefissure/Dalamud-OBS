@@ -587,7 +587,7 @@ namespace OBSPlugin
                         var childChildIsVisible = GetNodeVisible(childChildNode);
                         if (childChildNode != null && childChildNode->Type == NodeType.Text)
                         {
-                            if (childChildNode->NodeId == 16 && childChildIsVisible)
+                            if (childChildNode->NodeId == 17 && childChildIsVisible)
                             {
                                 PartyMemberBlurList[partyMemberCount] = GetBlurFromNode(childChildNode, $"PartyList_{partyMemberCount}");
                                 existingBlur.Add($"PartyList_{partyMemberCount}");
