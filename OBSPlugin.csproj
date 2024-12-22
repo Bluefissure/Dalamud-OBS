@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
 		<LangVersion>9.0</LangVersion>
-		<Version>1.0.4.3</Version>
+		<Version>1.0.4.4</Version>
     <PublishSingleFile>true</PublishSingleFile>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
@@ -12,8 +12,8 @@
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<PlatformTarget>x64</PlatformTarget>
 		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-		<AssemblyVersion>1.0.4.3</AssemblyVersion>
-		<FileVersion>1.0.4.3</FileVersion>
+		<AssemblyVersion>1.0.4.4</AssemblyVersion>
+		<FileVersion>1.0.4.4</FileVersion>
 		<Authors>Bluefissure</Authors>
 		<Company>OtterCorp</Company>
 	</PropertyGroup>
