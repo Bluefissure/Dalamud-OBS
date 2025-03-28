@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
+		<TargetFramework>net9.0</TargetFramework>
 		<LangVersion>9.0</LangVersion>
-		<Version>1.0.4.4</Version>
+		<Version>1.0.5.0</Version>
     <PublishSingleFile>true</PublishSingleFile>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
@@ -12,8 +12,8 @@
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<PlatformTarget>x64</PlatformTarget>
 		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-		<AssemblyVersion>1.0.4.4</AssemblyVersion>
-		<FileVersion>1.0.4.4</FileVersion>
+		<AssemblyVersion>1.0.5.0</AssemblyVersion>
+		<FileVersion>1.0.5.0</FileVersion>
 		<Authors>Bluefissure</Authors>
 		<Company>OtterCorp</Company>
 	</PropertyGroup>
@@ -36,7 +36,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="DalamudPackager" Version="11.0.0" />
+		<PackageReference Include="DalamudPackager" Version="12.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -56,6 +56,10 @@
 	  </Reference>
 	  <Reference Include="FFXIVClientStructs">
 	    <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+	    <Private>false</Private>
+	  </Reference>
+	  <Reference Include="InteropGenerator.Runtime">
+	    <HintPath>$(DalamudLibPath)InteropGenerator.Runtime.dll</HintPath>
 	    <Private>false</Private>
 	  </Reference>
 	  <Reference Include="ImGui.NET">

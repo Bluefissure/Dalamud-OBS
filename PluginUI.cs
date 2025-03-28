@@ -1,6 +1,4 @@
-﻿using Dalamud.Interface;
-using Dalamud.Logging;
-using FFXIVClientStructs.FFXIV.Component.GUI;
+﻿using FFXIVClientStructs.FFXIV.Component.GUI;
 using ImGuiNET;
 using Newtonsoft.Json.Linq;
 using OBSPlugin.Objects;
@@ -15,7 +13,6 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Lumina.Excel.Sheets;
 using System.IO;
-using Dalamud.Plugin.Services;
 using System.Threading;
 
 namespace OBSPlugin
