@@ -135,36 +135,38 @@ namespace OBSPlugin
                 {
                     if (config.StopRecordOnCombat)
                     {
-                        
-                        new Task(async () =>
-                        {
-                            try
-                            {
-                                PluginLog.Information($"Stop recording in {config.StopRecordOnCombatDelay} seconds");
-                                _stoppingRecord = true;
-                                var delay = config.StopRecordOnCombatDelay;
-                                do
-                                {
-                                    _cts.Token.ThrowIfCancellationRequested();
-                                    Thread.Sleep(1000);
-                                    delay -= 1;
-                                } while (delay > 0 || (config.DontStopInCutscene &&
-                                    await Framework.RunOnFrameworkThread(() => this.ClientState.LocalPlayer?.OnlineStatus.RowId == 15)));
-                                PluginLog.Information("Auto stop recording");
-                                // this.ui.SetRecordingDir();
-                                this.obs.StopRecord();
-                            }
-                            catch (ErrorResponseException err)
-                            {
-                                PluginLog.Warning("Stop Recording Error: {0}", err);
-                            }
-                            finally
-                            {
-                                _stoppingRecord = false;
-                                _cts.Dispose();
-                                _cts = new();
-                            }
-                        }, _cts.Token).Start();
+                        StopRecordingAsync();
+                        //new Task(async () =>
+                        //{
+                        //    try
+                        //    {
+                        //        PluginLog.Information($"Stop recording in {config.StopRecordOnCombatDelay} seconds");
+                        //        _stoppingRecord = true;
+                        //        var delay = config.StopRecordOnCombatDelay;
+                        //        var isViewingCutScene = false;
+                        //        do
+                        //        {
+                        //            _cts.Token.ThrowIfCancellationRequested();
+                        //            await Task.Delay(1000);
+                        //            delay -= 1;
+                        //            isViewingCutScene = await Framework.RunOnFrameworkThread(() => this.ClientState.LocalPlayer?.OnlineStatus.RowId == 15);
+                        //            PluginLog.Information($"isViewingCutScene: {isViewingCutScene}");
+                        //        } while (delay > 0 || (config.DontStopInCutscene && isViewingCutScene));
+                        //        PluginLog.Information("Auto stop recording");
+                        //        // this.ui.SetRecordingDir();
+                        //        this.obs.StopRecord();
+                        //    }
+                        //    catch (ErrorResponseException err)
+                        //    {
+                        //        PluginLog.Warning("Stop Recording Error: {0}", err);
+                        //    }
+                        //    finally
+                        //    {
+                        //        _stoppingRecord = false;
+                        //        _cts.Dispose();
+                        //        _cts = new();
+                        //    }
+                        //}, _cts.Token).Start();
                     }
                     if (config.SaveReplayBufferOnCombat)
                     {
@@ -224,7 +226,38 @@ namespace OBSPlugin
 
             ClientState.TerritoryChanged += onTerritoryChanged;
         }
+        public async Task StopRecordingAsync()
+        {
+            try
+            {
+                PluginLog.Information($"Stop recording in {config.StopRecordOnCombatDelay} seconds");
+                _stoppingRecord = true;
+                var delay = config.StopRecordOnCombatDelay;
+                var isViewingCutScene = false;
 
+                do
+                {
+                    _cts.Token.ThrowIfCancellationRequested();
+                    await Task.Delay(1000);
+                    delay -= 1;
+                    isViewingCutScene = await Framework.RunOnFrameworkThread(() => this.ClientState.LocalPlayer?.OnlineStatus.RowId == 15);
+                    PluginLog.Information($"isViewingCutScene: {isViewingCutScene}");
+                } while (delay > 0 || (config.DontStopInCutscene && isViewingCutScene));
+
+                PluginLog.Information("Auto stop recording");
+                this.obs.StopRecord();
+            }
+            catch (ErrorResponseException err)
+            {
+                PluginLog.Warning("Stop Recording Error: {0}", err);
+            }
+            finally
+            {
+                _stoppingRecord = false;
+                _cts.Dispose();
+                _cts = new CancellationTokenSource();
+            }
+        }
 
         private void OpenConfigUi()
         {
