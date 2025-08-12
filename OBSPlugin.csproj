@@ -1,17 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Dalamud.NET.Sdk/13.0.0">
 
 	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
-		<LangVersion>9.0</LangVersion>
+		<LangVersion>10.0</LangVersion>
 		<Version>1.0.5.1</Version>
-    <PublishSingleFile>true</PublishSingleFile>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-	</PropertyGroup>
-
-	<PropertyGroup>
-		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
-		<PlatformTarget>x64</PlatformTarget>
-		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
 		<AssemblyVersion>1.0.5.1</AssemblyVersion>
 		<FileVersion>1.0.5.1</FileVersion>
 		<Authors>Bluefissure</Authors>
@@ -21,11 +12,6 @@
 	<PropertyGroup>
 		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
 	</PropertyGroup>
-	
-  <PropertyGroup>
-    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-    <StartupObject />
-  </PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -36,10 +22,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="DalamudPackager" Version="12.0.0" />
-	</ItemGroup>
-
-	<ItemGroup>
 	  <Compile Remove="lib\**" />
 	  <EmbeddedResource Remove="lib\**" />
 	  <None Remove="lib\**" />
@@ -47,41 +29,6 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="lib\obs-websocket-dotnet\obs-websocket-dotnet\obs-websocket-dotnet.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Reference Include="Dalamud">
-	    <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
-	    <Private>false</Private>
-	  </Reference>
-	  <Reference Include="FFXIVClientStructs">
-	    <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
-	    <Private>false</Private>
-	  </Reference>
-	  <Reference Include="InteropGenerator.Runtime">
-	    <HintPath>$(DalamudLibPath)InteropGenerator.Runtime.dll</HintPath>
-	    <Private>false</Private>
-	  </Reference>
-	  <Reference Include="ImGui.NET">
-	    <HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
-	    <Private>false</Private>
-	  </Reference>
-	  <Reference Include="ImGuiScene">
-	    <HintPath>$(DalamudLibPath)ImGuiScene.dll</HintPath>
-	    <Private>false</Private>
-	  </Reference>
-	  <Reference Include="Lumina">
-	    <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
-	    <Private>false</Private>
-	  </Reference>
-	  <Reference Include="Lumina.Excel">
-	    <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
-	    <Private>false</Private>
-	  </Reference>
-	  <Reference Include="Newtonsoft.Json">
-	    <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
-	    <Private>false</Private>
-	  </Reference>
 	</ItemGroup>
 
 </Project>

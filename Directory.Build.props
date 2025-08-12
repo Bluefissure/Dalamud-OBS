@@ -1,0 +1,26 @@
+<Project>
+  <PropertyGroup>
+    <!-- Force Visual Studio to recognize and build Dalamud.NET.Sdk projects -->
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <EnableDefaultItems>true</EnableDefaultItems>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <GenerateDependencyFile>true</GenerateDependencyFile>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    
+    <!-- Ensure proper output directory -->
+    <BaseOutputPath>bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
+    
+    <!-- Force .NET SDK resolution -->
+    <UseMicrosoftNETSdk>true</UseMicrosoftNETSdk>
+  </PropertyGroup>
+  
+  <!-- Ensure OBSPlugin project is always built -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OBSPlugin'">
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+    <AlwaysBuild>true</AlwaysBuild>
+  </PropertyGroup>
+</Project>

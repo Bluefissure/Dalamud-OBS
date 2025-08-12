@@ -5,7 +5,6 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
 using Dalamud.IoC;
-using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Common.Lua;
@@ -101,6 +100,7 @@ namespace OBSPlugin
             PluginInterface.UiBuilder.DisableUserUiHide = true;
             PluginInterface.UiBuilder.Draw += this.ui.Draw;
             PluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
+            PluginInterface.UiBuilder.OpenMainUi += this.OpenMainUi;
 
 
             state = new CombatState();
@@ -260,6 +260,11 @@ namespace OBSPlugin
         }
 
         private void OpenConfigUi()
+        {
+            this.ui.IsVisible = true;
+        }
+
+        private void OpenMainUi()
         {
             this.ui.IsVisible = true;
         }
@@ -737,6 +742,8 @@ namespace OBSPlugin
             PluginInterface.SavePluginConfig(this.config);
 
             PluginInterface.UiBuilder.Draw -= this.ui.Draw;
+            PluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
+            PluginInterface.UiBuilder.OpenMainUi -= this.OpenMainUi;
 
             ClientState.TerritoryChanged -= onTerritoryChanged;
 

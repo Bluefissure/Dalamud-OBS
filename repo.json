@@ -9,7 +9,7 @@
     "RepoUrl": "https://github.com/Bluefissure/Dalamud-OBS",
     "IconUrl": "https://raw.githubusercontent.com/Bluefissure/Dalamud-OBS/master/releases/image/icon_.png",
     "ApplicableVersion": "any",
-    "DalamudApiLevel": 5,
+    "DalamudApiLevel": 13,
     "IsHide": "False",
     "IsTestingExclusive": "False",
     "DownloadCount": 0,
