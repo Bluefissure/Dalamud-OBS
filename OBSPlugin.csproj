@@ -8,7 +8,7 @@
 		<Authors>Bluefissure</Authors>
 		<Company>OtterCorp</Company>
 	</PropertyGroup>
-	
+
 	<PropertyGroup>
 		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
 	</PropertyGroup>
