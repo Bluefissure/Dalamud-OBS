@@ -2,9 +2,9 @@
 
 	<PropertyGroup>
 		<LangVersion>10.0</LangVersion>
-		<Version>1.0.5.1</Version>
-		<AssemblyVersion>1.0.5.1</AssemblyVersion>
-		<FileVersion>1.0.5.1</FileVersion>
+		<Version>1.0.5.2</Version>
+		<AssemblyVersion>1.0.5.2</AssemblyVersion>
+		<FileVersion>1.0.5.2</FileVersion>
 		<Authors>Bluefissure</Authors>
 		<Company>OtterCorp</Company>
 	</PropertyGroup>
