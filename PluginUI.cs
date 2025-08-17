@@ -1,5 +1,5 @@
 ﻿using FFXIVClientStructs.FFXIV.Component.GUI;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Newtonsoft.Json.Linq;
 using OBSPlugin.Objects;
 using OBSWebsocketDotNet;
@@ -537,30 +537,36 @@ namespace OBSPlugin
 
         private unsafe void UpdateChatLogPanel(string ChatLogWindowName, bool followUI = true)
         {
-            var chatLogAddress = Plugin.GameGui.GetAddonByName(ChatLogWindowName, 1);
-            if (chatLogAddress == IntPtr.Zero) return;
-            var chatLog = (AtkUnitBase*)chatLogAddress;
-            if (chatLog->UldManager.NodeListCount <= 0) return;
-            var chatLogNode = chatLog->UldManager.NodeList[0];
-            bool? visiblity = followUI ? null : false; // null is auto
-            UpdateBlur(GetBlurFromNode(chatLogNode, ChatLogWindowName, false, visiblity));
+            var chatLog = Plugin.GameGui.GetAddonByName(ChatLogWindowName, 1);
+            if (chatLog.IsNull) return;
+            unsafe
+            {
+                var chatLogPtr = (AtkUnitBase*)chatLog.Address;
+                if (chatLogPtr->UldManager.NodeListCount <= 0) return;
+                var chatLogNode = chatLogPtr->UldManager.NodeList[0];
+                bool? visiblity = followUI ? null : false; // null is auto
+                UpdateBlur(GetBlurFromNode(chatLogNode, ChatLogWindowName, false, visiblity));
+            }
         }
 
         private unsafe Dictionary<string, bool> GetChatLogPanelVisiblity()
         {
 
-            var chatLogAddress = Plugin.GameGui.GetAddonByName("ChatLog", 1);
-            if (chatLogAddress == IntPtr.Zero) throw new Exception("ChatLog get faild!");
-            var chatLog = (AtkUnitBase*)chatLogAddress;
-            if (chatLog->UldManager.NodeListCount <= 0) throw new Exception("ChatLog's children is empty!");
-
-            // when panel tag invisiblity, it means the sub panel is a standalone panel.
-            return new Dictionary<string, bool>
+            var chatLog = Plugin.GameGui.GetAddonByName("ChatLog", 1);
+            if (chatLog.IsNull) throw new Exception("ChatLog get faild!");
+            unsafe
             {
-                { "ChatLogPanel_1", !GetNodeVisible(chatLog->UldManager.NodeList[13]) },
-                { "ChatLogPanel_2", !GetNodeVisible(chatLog->UldManager.NodeList[12]) },
-                { "ChatLogPanel_3", !GetNodeVisible(chatLog->UldManager.NodeList[11]) }
-            };
+                var chatLogPtr = (AtkUnitBase*)chatLog.Address;
+                if (chatLogPtr->UldManager.NodeListCount <= 0) throw new Exception("ChatLog's children is empty!");
+
+                // when panel tag invisiblity, it means the sub panel is a standalone panel.
+                return new Dictionary<string, bool>
+                {
+                    { "ChatLogPanel_1", !GetNodeVisible(chatLogPtr->UldManager.NodeList[13]) },
+                    { "ChatLogPanel_2", !GetNodeVisible(chatLogPtr->UldManager.NodeList[12]) },
+                    { "ChatLogPanel_3", !GetNodeVisible(chatLogPtr->UldManager.NodeList[11]) }
+                };
+            }
 
         }
 
@@ -569,27 +575,30 @@ namespace OBSPlugin
             if (!Config.PartyListBlur) return;
             HashSet<string> existingBlur = new();
             uint partyMemberCount = 0;
-            var partyListAddress = Plugin.GameGui.GetAddonByName("_PartyList", 1);
-            if (partyListAddress == IntPtr.Zero) return;
-            var partyList = (AtkUnitBase*)partyListAddress;
-            for (var i = 0; i < partyList->UldManager.NodeListCount; i++)
+            var partyList = Plugin.GameGui.GetAddonByName("_PartyList", 1);
+            if (partyList.IsNull) return;
+            unsafe
             {
-                var childNode = partyList->UldManager.NodeList[i];
-                var IsVisible = GetNodeVisible(childNode);
-                if (childNode != null && (int)childNode->Type == 1006 && IsVisible)
+                var partyListPtr = (AtkUnitBase*)partyList.Address;
+                for (var i = 0; i < partyListPtr->UldManager.NodeListCount; i++)
                 {
-                    for (var j = 0; j < childNode->GetAsAtkComponentNode()->Component->UldManager.NodeListCount; j++)
+                    var childNode = partyListPtr->UldManager.NodeList[i];
+                    var IsVisible = GetNodeVisible(childNode);
+                    if (childNode != null && (int)childNode->Type == 1006 && IsVisible)
                     {
-                        var childChildNode = childNode->GetAsAtkComponentNode()->Component->UldManager.NodeList[j];
-                        var childChildIsVisible = GetNodeVisible(childChildNode);
-                        if (childChildNode != null && childChildNode->Type == NodeType.Text)
+                        for (var j = 0; j < childNode->GetAsAtkComponentNode()->Component->UldManager.NodeListCount; j++)
                         {
-                            if (childChildNode->NodeId == 17 && childChildIsVisible)
+                            var childChildNode = childNode->GetAsAtkComponentNode()->Component->UldManager.NodeList[j];
+                            var childChildIsVisible = GetNodeVisible(childChildNode);
+                            if (childChildNode != null && childChildNode->Type == NodeType.Text)
                             {
-                                PartyMemberBlurList[partyMemberCount] = GetBlurFromNode(childChildNode, $"PartyList_{partyMemberCount}");
-                                existingBlur.Add($"PartyList_{partyMemberCount}");
-                                partyMemberCount++;
-                                break;
+                                if (childChildNode->NodeId == 17 && childChildIsVisible)
+                                {
+                                    PartyMemberBlurList[partyMemberCount] = GetBlurFromNode(childChildNode, $"PartyList_{partyMemberCount}");
+                                    existingBlur.Add($"PartyList_{partyMemberCount}");
+                                    partyMemberCount++;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -615,21 +624,24 @@ namespace OBSPlugin
             if (!Config.NamePlateBlur) return;
             Dictionary<string, Blur> namePlateBlurMap = new();
             HashSet<string> existingBlur = new();
-            var namePlateAddress = Plugin.GameGui.GetAddonByName("NamePlate", 1);
-            if (namePlateAddress == IntPtr.Zero) return;
-            var namePlate = (AtkUnitBase*)namePlateAddress;
-            for (var i = 0; i < namePlate->UldManager.NodeListCount; i++)
+            var namePlate = Plugin.GameGui.GetAddonByName("NamePlate", 1);
+            if (namePlate.IsNull) return;
+            unsafe
             {
-                var childNode = namePlate->UldManager.NodeList[i];
-                var IsVisible = GetNodeVisible(childNode);
-                if (childNode != null && (int)childNode->Type == 1001 && IsVisible)
+                var namePlatePtr = (AtkUnitBase*)namePlate.Address;
+                for (var i = 0; i < namePlatePtr->UldManager.NodeListCount; i++)
                 {
-                    var collisionNode = childNode->GetAsAtkComponentNode()->Component->UldManager.NodeList[0];
-                    var collisionNodeIsVisible = GetNodeVisible(collisionNode);
-                    if (collisionNode != null && collisionNode->Type == NodeType.Collision && collisionNodeIsVisible)
+                    var childNode = namePlatePtr->UldManager.NodeList[i];
+                    var IsVisible = GetNodeVisible(childNode);
+                    if (childNode != null && (int)childNode->Type == 1001 && IsVisible)
                     {
-                        string blurName = $"NamePlate_{(ulong)collisionNode:X}";
-                        namePlateBlurMap[blurName] = GetBlurFromNode(collisionNode, blurName, true);
+                        var collisionNode = childNode->GetAsAtkComponentNode()->Component->UldManager.NodeList[0];
+                        var collisionNodeIsVisible = GetNodeVisible(collisionNode);
+                        if (collisionNode != null && collisionNode->Type == NodeType.Collision && collisionNodeIsVisible)
+                        {
+                            string blurName = $"NamePlate_{(ulong)collisionNode:X}";
+                            namePlateBlurMap[blurName] = GetBlurFromNode(collisionNode, blurName, true);
+                        }
                     }
                 }
             }
@@ -661,42 +673,48 @@ namespace OBSPlugin
             Blur targetBlur = null;
             Blur targetTargetBlur = null;
             // uint partyMemberCount = 0;
-            var targetInfoAddress = Plugin.GameGui.GetAddonByName("_TargetInfo", 1);
-            if (targetInfoAddress == IntPtr.Zero) return;
-            var targetInfo = (AtkUnitBase*)targetInfoAddress;
-            if (!GetNodeVisible(targetInfo->UldManager.NodeList[0]))
+            var targetInfo = Plugin.GameGui.GetAddonByName("_TargetInfo", 1);
+            if (targetInfo.IsNull) return;
+            unsafe
             {
-                targetInfoAddress = Plugin.GameGui.GetAddonByName("_TargetInfoMainTarget", 1);
-                targetInfo = (AtkUnitBase*)targetInfoAddress;
-            }
-            int textIndex = 0;
-            int totalText = 0;
-            for (var i = 0; i < targetInfo->UldManager.NodeListCount; i++)
-            {
-                var childNode = targetInfo->UldManager.NodeList[i];
-                if (childNode != null && childNode->Type == NodeType.Text)
+                var targetInfoPtr = (AtkUnitBase*)targetInfo.Address;
+                if (!GetNodeVisible(targetInfoPtr->UldManager.NodeList[0]))
                 {
-                    totalText++;
-                }
-            }
-            for (var i = 0; i < targetInfo->UldManager.NodeListCount; i++)
-            {
-                var childNode = targetInfo->UldManager.NodeList[i];
-                var IsVisible = GetNodeVisible(childNode);
-                if (childNode != null && childNode->Type == NodeType.Text)
-                {
-                    if (IsVisible)
+                    targetInfo = Plugin.GameGui.GetAddonByName("_TargetInfoMainTarget", 1);
+                    if (!targetInfo.IsNull)
                     {
-                        if (textIndex == 2)
-                        {
-                            targetBlur = GetBlurFromNode(childNode, "Target");
-                        }
-                        else if (textIndex == totalText - 1)
-                        {
-                            targetTargetBlur = GetBlurFromNode(childNode, "TargetTarget");
-                        }
+                        targetInfoPtr = (AtkUnitBase*)targetInfo.Address;
                     }
-                    textIndex++;
+                }
+                int textIndex = 0;
+                int totalText = 0;
+                for (var i = 0; i < targetInfoPtr->UldManager.NodeListCount; i++)
+                {
+                    var childNode = targetInfoPtr->UldManager.NodeList[i];
+                    if (childNode != null && childNode->Type == NodeType.Text)
+                    {
+                        totalText++;
+                    }
+                }
+                for (var i = 0; i < targetInfoPtr->UldManager.NodeListCount; i++)
+                {
+                    var childNode = targetInfoPtr->UldManager.NodeList[i];
+                    var IsVisible = GetNodeVisible(childNode);
+                    if (childNode != null && childNode->Type == NodeType.Text)
+                    {
+                        if (IsVisible)
+                        {
+                            if (textIndex == 2)
+                            {
+                                targetBlur = GetBlurFromNode(childNode, "Target");
+                            }
+                            else if (textIndex == totalText - 1)
+                            {
+                                targetTargetBlur = GetBlurFromNode(childNode, "TargetTarget");
+                            }
+                        }
+                        textIndex++;
+                    }
                 }
             }
             if (Config.TargetBlur)
@@ -736,17 +754,20 @@ namespace OBSPlugin
         {
             if (!Config.FocusTargetBlur) return;
             Blur focusTargetBlur = null;
-            var focusTargetAddress = Plugin.GameGui.GetAddonByName("_FocusTargetInfo", 1);
-            if (focusTargetAddress == IntPtr.Zero) return;
-            var focusTargetInfo = (AtkUnitBase*)focusTargetAddress;
-            for (var i = 0; i < focusTargetInfo->UldManager.NodeListCount; i++)
+            var focusTargetInfo = Plugin.GameGui.GetAddonByName("_FocusTargetInfo", 1);
+            if (focusTargetInfo.IsNull) return;
+            unsafe
             {
-                var childNode = focusTargetInfo->UldManager.NodeList[i];
-                var IsVisible = GetNodeVisible(childNode);
-                if (childNode != null && childNode->Type == NodeType.Text && IsVisible)
+                var focusTargetInfoPtr = (AtkUnitBase*)focusTargetInfo.Address;
+                for (var i = 0; i < focusTargetInfoPtr->UldManager.NodeListCount; i++)
                 {
-                    focusTargetBlur = GetBlurFromNode(childNode, "FocusTarget");
-                    break;
+                    var childNode = focusTargetInfoPtr->UldManager.NodeList[i];
+                    var IsVisible = GetNodeVisible(childNode);
+                    if (childNode != null && childNode->Type == NodeType.Text && IsVisible)
+                    {
+                        focusTargetBlur = GetBlurFromNode(childNode, "FocusTarget");
+                        break;
+                    }
                 }
             }
             if (focusTargetBlur == null)
@@ -766,31 +787,48 @@ namespace OBSPlugin
         private unsafe void UpdateCharacter()
         {
             if (!Config.CharacterBlur) return;
-            var characterAddress = Plugin.GameGui.GetAddonByName("Character", 1);
-            var characterProfileAddress = Plugin.GameGui.GetAddonByName("CharacterProfile", 1);
+            var character = Plugin.GameGui.GetAddonByName("Character", 1);
+            var characterProfile = Plugin.GameGui.GetAddonByName("CharacterProfile", 1);
             // character
-            if (characterAddress == IntPtr.Zero) return;
-            var character = (AtkUnitBase*)characterAddress;
-            if (character->UldManager.NodeListCount <= 0) return;
-            var childNode = character->UldManager.NodeList[82];
-            UpdateBlur(GetBlurFromNode(childNode, "Character"));
+            if (!character.IsNull)
+            {
+                unsafe
+                {
+                    var characterPtr = (AtkUnitBase*)character.Address;
+                    if (characterPtr->UldManager.NodeListCount > 0)
+                    {
+                        var childNode = characterPtr->UldManager.NodeList[82];
+                        UpdateBlur(GetBlurFromNode(childNode, "Character"));
+                    }
+                }
+            }
             // characterProfile, may separate but i think it is fun
-            if (characterProfileAddress == IntPtr.Zero) return;
-            var characterProfile = (AtkUnitBase*)characterProfileAddress;
-            if (characterProfile->UldManager.NodeListCount <= 0) return;
-            var childNodeProfile = characterProfile->UldManager.NodeList[30];
-            UpdateBlur(GetBlurFromNode(childNodeProfile, "CharacterProfile"));
+            if (!characterProfile.IsNull)
+            {
+                unsafe
+                {
+                    var characterProfilePtr = (AtkUnitBase*)characterProfile.Address;
+                    if (characterProfilePtr->UldManager.NodeListCount > 0)
+                    {
+                        var childNodeProfile = characterProfilePtr->UldManager.NodeList[30];
+                        UpdateBlur(GetBlurFromNode(childNodeProfile, "CharacterProfile"));
+                    }
+                }
+            }
         }
 
         private unsafe void UpdateFridendList()
         {
             if (!Config.FriendListBlur) return;
-            var friendListAddress = Plugin.GameGui.GetAddonByName("FriendList", 1);
-            if (friendListAddress == IntPtr.Zero) return;
-            var friendList = (AtkUnitBase*)friendListAddress;
-            if (friendList->UldManager.NodeListCount <= 0) return;
-            var childNode = friendList->UldManager.NodeList[8];
-            UpdateBlur(GetBlurFromNode(childNode, "FriendList"));
+            var friendList = Plugin.GameGui.GetAddonByName("FriendList", 1);
+            if (friendList.IsNull) return;
+            unsafe
+            {
+                var friendListPtr = (AtkUnitBase*)friendList.Address;
+                if (friendListPtr->UldManager.NodeListCount <= 0) return;
+                var childNode = friendListPtr->UldManager.NodeList[8];
+                UpdateBlur(GetBlurFromNode(childNode, "FriendList"));
+            }
         }
 
         private unsafe void UpdateHotbar()
@@ -799,32 +837,41 @@ namespace OBSPlugin
             foreach (var i in Config.BlurredHotbars)
             {
                 var suffix = (i - 1).ToString("00");
-                var hotbarAddress = Plugin.GameGui.GetAddonByName($"_ActionBar{(suffix == "00" ? string.Empty : suffix)}", 1);
-                if (hotbarAddress == IntPtr.Zero) return;
-                var hotbar = (AtkUnitBase*)hotbarAddress;
-                var childNode = hotbar->UldManager.NodeList[0];
-                UpdateBlur(GetBlurFromNode(childNode, $"Hotbar{suffix}"));
+                var hotbar = Plugin.GameGui.GetAddonByName($"_ActionBar{(suffix == "00" ? string.Empty : suffix)}", 1);
+                if (hotbar.IsNull) return;
+                unsafe
+                {
+                    var hotbarPtr = (AtkUnitBase*)hotbar.Address;
+                    var childNode = hotbarPtr->UldManager.NodeList[0];
+                    UpdateBlur(GetBlurFromNode(childNode, $"Hotbar{suffix}"));
+                }
             }
         }
         private unsafe void UpdateCastBar()
         {
             if (!Config.CastBarBlur) return;
-            var castbarAddress = Plugin.GameGui.GetAddonByName("_CastBar", 1);
-            if (castbarAddress == IntPtr.Zero) return;
-            var castbar = (AtkUnitBase*)castbarAddress;
-            var childNode = castbar->UldManager.NodeList[1];
-            UpdateBlur(GetBlurFromNode(childNode, "CastBar"));
+            var castbar = Plugin.GameGui.GetAddonByName("_CastBar", 1);
+            if (castbar.IsNull) return;
+            unsafe
+            {
+                var castbarPtr = (AtkUnitBase*)castbar.Address;
+                var childNode = castbarPtr->UldManager.NodeList[1];
+                UpdateBlur(GetBlurFromNode(childNode, "CastBar"));
+            }
         }
 
         // TODO IDK how to create the list in UI, maybe i can write a command
         private unsafe void UpdateCustomAddon(String addonName)
         {
-            var addonAddress = Plugin.GameGui.GetAddonByName(addonName, 1);
-            if (addonAddress == IntPtr.Zero) return;
-            var addon = (AtkUnitBase*)addonAddress;
-            if (addon->UldManager.NodeListCount <= 0) return;
-            var childNode = addon->UldManager.NodeList[0];
-            UpdateBlur(GetBlurFromNode(childNode, addonName));
+            var addon = Plugin.GameGui.GetAddonByName(addonName, 1);
+            if (addon.IsNull) return;
+            unsafe
+            {
+                var addonPtr = (AtkUnitBase*)addon.Address;
+                if (addonPtr->UldManager.NodeListCount <= 0) return;
+                var childNode = addonPtr->UldManager.NodeList[0];
+                UpdateBlur(GetBlurFromNode(childNode, addonName));
+            }
         }
 
         private void DrawConnectionSettings()
@@ -834,7 +881,7 @@ namespace OBSPlugin
                 Config.Save();
             }
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
-            ImGui.TextColored(Plugin.Connected ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
+            ImGui.TextColored(Plugin.Connected ? new Vector4(0, 1, 0, 1) : new Vector4(1, 0, 0, 1),
                 Plugin.Connected ? "Connected" : "Disconnected");
             var address = Config.Address;
             if (ImGui.InputText("Server Address", ref address, 128, ImGuiInputTextFlags.EnterReturnsTrue))
@@ -1220,7 +1267,7 @@ namespace OBSPlugin
             }
 
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
-            ImGui.TextColored(Plugin.obsStreamStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
+            ImGui.TextColored(Plugin.obsStreamStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new Vector4(0, 1, 0, 1) : new Vector4(1, 0, 0, 1),
                 Plugin.obsStreamStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? "Streaming" : "Stopped");
 
             if (Plugin.streamStats != null && Plugin.streamStats.IsActive)
@@ -1362,7 +1409,7 @@ namespace OBSPlugin
             }
 
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
-            ImGui.TextColored(Plugin.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
+            ImGui.TextColored(Plugin.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new Vector4(0, 1, 0, 1) : new Vector4(1, 0, 0, 1),
                 Plugin.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? "Recording" : "Stopped");
 
             if (ImGui.InputText("Recordings Directory", ref Config.RecordDir, 256, ImGuiInputTextFlags.EnterReturnsTrue))
@@ -1475,7 +1522,7 @@ namespace OBSPlugin
                 }
             }
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
-            ImGui.TextColored(Plugin.obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new(0, 1, 0, 1) : new(1, 0, 0, 1),
+            ImGui.TextColored(Plugin.obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new Vector4(0, 1, 0, 1) : new Vector4(1, 0, 0, 1),
                 Plugin.obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? "Replaying" : "Stopped");
 
             if (ImGui.Checkbox("Zone as sub folder", ref Config.ResetReplayBufferDirByTerritory))
