@@ -56,7 +56,7 @@ namespace OBSPlugin
         {
             var handlerDelegate = (HandlerDelegate)Delegate.CreateDelegate(typeof(HandlerDelegate), this.host, method);
 
-            var command = handlerDelegate.Method.GetCustomAttribute<CommandAttribute>();
+            var command = handlerDelegate.Method.GetCustomAttribute<CommandAttribute>()!;
             var aliases = handlerDelegate.Method.GetCustomAttribute<AliasesAttribute>();
             var helpMessage = handlerDelegate.Method.GetCustomAttribute<HelpMessageAttribute>();
             var doNotShowInHelp = handlerDelegate.Method.GetCustomAttribute<DoNotShowInHelpAttribute>();

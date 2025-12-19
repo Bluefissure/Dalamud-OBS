@@ -37,7 +37,7 @@ namespace OBSPlugin.Objects
         public bool InInstance { get; set; }
 
         public float CountDownValue { get; set; } = 0f;
-        public event EventHandler InCombatChanged;
-        public event EventHandler CountingDownChanged;
+        public event EventHandler? InCombatChanged;
+        public event EventHandler? CountingDownChanged;
     }
 }

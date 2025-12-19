@@ -23,40 +23,27 @@ namespace OBSPlugin
 {
     public class Plugin : IDalamudPlugin
     {
+        // Static services (injected via attribute)
         [PluginService]
-        internal static IDalamudPluginInterface PluginInterface { get; private set; }
+        internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
+        [PluginService]
+        internal static IPluginLog PluginLog { get; private set; } = null!;
 
-        [PluginService]
-        internal ICommandManager Commands { get; init; }
-
-        [PluginService]
-        internal IChatGui Chat { get; init; }
-
-        [PluginService]
-        internal IClientState ClientState { get; init; }
-        [PluginService]
-        internal IFramework Framework { get; init; }
-
-        [PluginService]
-        internal IGameGui GameGui { get; init; }
-
-        [PluginService]
-        internal ISigScanner SigScanner { get; init; }
-
-        [PluginService]
-        internal ICondition Condition { get; init; }
-
-        [PluginService]
-        internal IDataManager Data { get; init; }
-
-        [PluginService]
-        internal IGameInteropProvider GameInteropProvider { get; init; }
-        [PluginService]
-        internal static IPluginLog PluginLog { get; private set; }
+        // Instance services (injected via constructor)
+        internal ICommandManager Commands { get; }
+        internal IChatGui Chat { get; }
+        internal IClientState ClientState { get; }
+        internal IObjectTable ObjectTable { get; }
+        internal IFramework Framework { get; }
+        internal IGameGui GameGui { get; }
+        internal ISigScanner SigScanner { get; }
+        internal ICondition Condition { get; }
+        internal IDataManager Data { get; }
+        internal IGameInteropProvider GameInteropProvider { get; }
 
         internal string minimumPluginVersion = "5.3.0";
 
-        private CancellationTokenSource keepAliveTokenSource;
+        private CancellationTokenSource? keepAliveTokenSource;
         private readonly int keepAliveInterval = 500;
 
         internal readonly PluginCommandManager<Plugin> commandManager;
@@ -66,8 +53,8 @@ namespace OBSPlugin
         internal OBSWebsocket obs;
         internal bool Connected = false;
         internal bool ConnectionFailed = false;
-        internal ObsVersion versionInfo;
-        internal OutputStatus streamStats;
+        internal ObsVersion? versionInfo;
+        internal OutputStatus? streamStats;
         internal OutputState obsStreamStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
         internal OutputState obsRecordStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
         internal OutputState obsReplayBufferStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
@@ -81,8 +68,29 @@ namespace OBSPlugin
 
         public string Name => "OBS Plugin";
 
-        public Plugin()
+        public Plugin(
+            ICommandManager commands,
+            IChatGui chat,
+            IClientState clientState,
+            IObjectTable objectTable,
+            IFramework framework,
+            IGameGui gameGui,
+            ISigScanner sigScanner,
+            ICondition condition,
+            IDataManager data,
+            IGameInteropProvider gameInteropProvider)
         {
+            // Assign injected services
+            Commands = commands;
+            Chat = chat;
+            ClientState = clientState;
+            ObjectTable = objectTable;
+            Framework = framework;
+            GameGui = gameGui;
+            SigScanner = sigScanner;
+            Condition = condition;
+            Data = data;
+            GameInteropProvider = gameInteropProvider;
             obs = new OBSWebsocket();
             obs.Connected += onConnect;
             obs.Disconnected += onDisconnect;
@@ -104,7 +112,7 @@ namespace OBSPlugin
 
 
             state = new CombatState();
-            state.InCombatChanged += new EventHandler((Object sender, EventArgs e) =>
+            state.InCombatChanged += new EventHandler((object? sender, EventArgs e) =>
             {
                 if (!Connected)
                 {
@@ -135,7 +143,7 @@ namespace OBSPlugin
                 {
                     if (config.StopRecordOnCombat)
                     {
-                        StopRecordingAsync();
+                        _ = StopRecordingAsync();
                         //new Task(async () =>
                         //{
                         //    try
@@ -149,7 +157,7 @@ namespace OBSPlugin
                         //            _cts.Token.ThrowIfCancellationRequested();
                         //            await Task.Delay(1000);
                         //            delay -= 1;
-                        //            isViewingCutScene = await Framework.RunOnFrameworkThread(() => this.ClientState.LocalPlayer?.OnlineStatus.RowId == 15);
+                        //            isViewingCutScene = await Framework.RunOnFrameworkThread(() => this.ObjectTable.LocalPlayer?.OnlineStatus.RowId == 15);
                         //            PluginLog.Information($"isViewingCutScene: {isViewingCutScene}");
                         //        } while (delay > 0 || (config.DontStopInCutscene && isViewingCutScene));
                         //        PluginLog.Information("Auto stop recording");
@@ -192,18 +200,20 @@ namespace OBSPlugin
                     }
                 }
             });
-            state.CountingDownChanged += new EventHandler((Object sender, EventArgs e) =>
+            state.CountingDownChanged += new EventHandler((object? sender, EventArgs e) =>
             {
                 if (!Connected)
                 {
                     TryConnect(config.Address, config.Password);
                     return;
                 }
-                if (this.state.CountDownValue > lastCountdownValue && config.StartRecordOnCountDown)
+
+                // Countdown started (CountingDown became true)
+                if (this.state.CountingDown && config.StartRecordOnCountDown)
                 {
                     try
                     {
-                        PluginLog.Information("Auto start recroding");
+                        PluginLog.Information("Countdown started - auto start recording");
                         this.ui.SetRecordingDir();
                         this.obs.StartRecord();
                     }
@@ -212,6 +222,28 @@ namespace OBSPlugin
                         PluginLog.Warning("Start Recording Error: {0}", err);
                     }
                 }
+                // Countdown stopped (CountingDown became false)
+                else if (!this.state.CountingDown && config.StopRecordOnCountDownCancel)
+                {
+                    // If countdown value is > 0.5, it was canceled (not completed naturally)
+                    if (lastCountdownValue > 0.5f)
+                    {
+                        try
+                        {
+                            PluginLog.Information("Countdown canceled - auto stop recording");
+                            this.obs.StopRecord();
+                        }
+                        catch (ErrorResponseException err)
+                        {
+                            PluginLog.Warning("Stop Recording Error: {0}", err);
+                        }
+                    }
+                    else
+                    {
+                        PluginLog.Information("Countdown completed (engage) - keeping recording active");
+                    }
+                }
+
                 lastCountdownValue = this.state.CountDownValue;
             });
             this.stopWatchHook = new StopWatchHook(state, SigScanner, Condition, GameInteropProvider);
@@ -240,7 +272,7 @@ namespace OBSPlugin
                     _cts.Token.ThrowIfCancellationRequested();
                     await Task.Delay(1000);
                     delay -= 1;
-                    isViewingCutScene = await Framework.RunOnFrameworkThread(() => this.ClientState.LocalPlayer?.OnlineStatus.RowId == 15);
+                    isViewingCutScene = await Framework.RunOnFrameworkThread(() => this.ObjectTable.LocalPlayer?.OnlineStatus.RowId == 15);
                     PluginLog.Information($"isViewingCutScene: {isViewingCutScene}");
                 } while (delay > 0 || (config.DontStopInCutscene && isViewingCutScene));
 
@@ -269,7 +301,7 @@ namespace OBSPlugin
             this.ui.IsVisible = true;
         }
 
-        public async void TryConnect(string url, string password)
+        public void TryConnect(string url, string password)
         {
             if (_connectLock)
             {
@@ -278,7 +310,7 @@ namespace OBSPlugin
             try
             {
                 _connectLock = true;
-                await Task.Run(() => obs.Connect(url, password));
+                obs.ConnectAsync(url, password);
                 ConnectionFailed = false;
             }
             catch (AuthFailureException)
@@ -296,7 +328,7 @@ namespace OBSPlugin
             }
         }
         
-        private void onConnect(object sender, EventArgs e)
+        private void onConnect(object? sender, EventArgs e)
         {
             Connected = true;
             PluginLog.Information("OBS connected: {0}", config.Address);
@@ -321,11 +353,19 @@ namespace OBSPlugin
                 onRecordingStateChange(obs, new RecordStateChangedEventArgs(new RecordStateChanged() { IsActive = true, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STARTED) }));
             else
                 onRecordingStateChange(obs, new RecordStateChangedEventArgs(new RecordStateChanged() { IsActive = false, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED) }));
-            var replayBufferActive = obs.GetReplayBufferStatus();
-            if (replayBufferActive)
-                onReplayBufferStateChange(obs, new ReplayBufferStateChangedEventArgs(new OutputStateChanged() { IsActive = true, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STARTED) }));
-            else
-                onReplayBufferStateChange(obs, new ReplayBufferStateChangedEventArgs(new OutputStateChanged() { IsActive = false, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED) }));
+            try
+            {
+                var replayBufferActive = obs.GetReplayBufferStatus();
+                if (replayBufferActive)
+                    onReplayBufferStateChange(obs, new ReplayBufferStateChangedEventArgs(new OutputStateChanged() { IsActive = true, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STARTED) }));
+                else
+                    onReplayBufferStateChange(obs, new ReplayBufferStateChangedEventArgs(new OutputStateChanged() { IsActive = false, StateStr = nameof(OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED) }));
+            }
+            catch (ErrorResponseException)
+            {
+                // Replay buffer not available/enabled in OBS - ignore
+                PluginLog.Debug("Replay buffer not available in OBS");
+            }
             if (config.RecordDir.Equals(String.Empty))
             {
                 var recordDir = obs.GetRecordDirectory();
@@ -366,7 +406,7 @@ namespace OBSPlugin
             streamStats = data;
         }
 
-        private void onDisconnect(object sender, ObsDisconnectionInfo e)
+        private void onDisconnect(object? sender, ObsDisconnectionInfo e)
         {
             PluginLog.Information("OBS disconnected: {0}", config.Address);
             Connected = false;
@@ -379,17 +419,17 @@ namespace OBSPlugin
         }
         */
 
-        private void onStreamingStateChange(object sender, StreamStateChangedEventArgs newState)
+        private void onStreamingStateChange(object? sender, StreamStateChangedEventArgs newState)
         {
             obsStreamStatus = newState.OutputState.State;
         }
 
-        private void onRecordingStateChange(object sender, RecordStateChangedEventArgs newState)
+        private void onRecordingStateChange(object? sender, RecordStateChangedEventArgs newState)
         {
             obsRecordStatus = newState.OutputState.State;
         }
 
-        private void onReplayBufferStateChange(object sender, ReplayBufferStateChangedEventArgs newState)
+        private void onReplayBufferStateChange(object? sender, ReplayBufferStateChangedEventArgs newState)
         {
             obsReplayBufferStatus = newState.OutputState.State;
         }
@@ -644,7 +684,7 @@ namespace OBSPlugin
             int firstSpaceIndex = args.IndexOf(' ');
 
             string command = args;
-            string systemName = null;
+            string? systemName = null;
 
             if (firstSpaceIndex != -1)
             {

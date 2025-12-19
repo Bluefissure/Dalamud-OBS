@@ -36,6 +36,7 @@ namespace OBSPlugin
         public bool IncludeTerritory = true;
         public bool ZoneAsSuffix = false;
         public bool StartRecordOnCountDown = false;
+        public bool StopRecordOnCountDownCancel = true;
         public bool StartRecordOnCombat = false;
         public bool StopRecordOnCombat = false;
         public bool CancelStopRecordOnResume = true;

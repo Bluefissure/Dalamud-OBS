@@ -57,6 +57,7 @@
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[9.0.4, )",
           "Newtonsoft.Json": "[13.0.3, )",
+          "System.Reactive": "[6.1.0, )",
           "Websocket.Client": "[5.1.2, )"
         }
       }

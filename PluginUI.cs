@@ -42,7 +42,7 @@ namespace OBSPlugin
             {
                 while (!BlurItemsToAdd.IsCompleted && isThreadRunning)
                 {
-                    Blur blur = null;
+                    Blur? blur = null;
                     try
                     {
                         blur = BlurItemsToAdd.Take();
@@ -51,7 +51,7 @@ namespace OBSPlugin
 
                     if (blur != null)
                     {
-                        if (BlurDict.TryGetValue(blur.Name, out Blur latestBlur))
+                        if (BlurDict.TryGetValue(blur.Name, out Blur? latestBlur))
                         {
                             if (blur.LastEdit.CompareTo(latestBlur.LastEdit) < 0)
                             {
@@ -72,7 +72,7 @@ namespace OBSPlugin
             {
                 while (!BlurItemsToRemove.IsCompleted && isThreadRunning)
                 {
-                    Blur blur = null;
+                    Blur? blur = null;
                     try
                     {
                         blur = BlurItemsToRemove.Take();
@@ -192,7 +192,7 @@ namespace OBSPlugin
             string sourceName = Config.SourceName;
             try
             {
-                FilterSettings filter = null;
+                FilterSettings? filter = null;
                 var settings = new JObject();
                 bool created = false;
                 try
@@ -301,7 +301,7 @@ namespace OBSPlugin
         {
             if (!Config.Enabled) return;
             if (!Plugin.Connected) return;
-            if (Plugin.ClientState.LocalPlayer == null) return;
+            if (Plugin.ObjectTable.LocalPlayer == null) return;
             try
             {
                 UpdateChatLog();
@@ -477,7 +477,7 @@ namespace OBSPlugin
             var nodeVisible = GetNodeVisible(node);
             var size = new Vector2(node->Width, node->Height) * scale;
             if (Config.DrawBlurRect && nodeVisible
-                && BlurDict.TryGetValue(name, out Blur existingBlur)
+                && BlurDict.TryGetValue(name, out Blur? existingBlur)
                 && existingBlur.Enabled)
                 ImGui.GetForegroundDrawList(ImGui.GetMainViewport()).AddRect(position, position + size, 0xFFFF0000);
             var (top, bottom, left, right) = GetUIRect(position.X,
@@ -492,7 +492,7 @@ namespace OBSPlugin
         private unsafe void UpdateBlur(Blur blur)
         {
             blur.LastEdit = DateTime.Now;
-            if (BlurDict.TryGetValue(blur.Name, out Blur existingBlur))
+            if (BlurDict.TryGetValue(blur.Name, out Blur? existingBlur))
             {
                 if (!blur.Equals(existingBlur))
                 {
@@ -528,7 +528,7 @@ namespace OBSPlugin
                 UpdateChatLogPanel("ChatLogPanel_2", panel["ChatLogPanel_2"]);
                 UpdateChatLogPanel("ChatLogPanel_3", panel["ChatLogPanel_3"]);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 return;
             }
@@ -670,8 +670,8 @@ namespace OBSPlugin
         private unsafe void UpdateTarget()
         {
             if (!Config.TargetBlur && !Config.TargetTargetBlur) return;
-            Blur targetBlur = null;
-            Blur targetTargetBlur = null;
+            Blur? targetBlur = null;
+            Blur? targetTargetBlur = null;
             // uint partyMemberCount = 0;
             var targetInfo = Plugin.GameGui.GetAddonByName("_TargetInfo", 1);
             if (targetInfo.IsNull) return;
@@ -721,7 +721,7 @@ namespace OBSPlugin
             {
                 if (targetBlur == null)
                 {
-                    if (BlurDict.TryGetValue("Target", out Blur blurToRemove))
+                    if (BlurDict.TryGetValue("Target", out Blur? blurToRemove))
                     {
                         BlurItemsToRemove.Add(blurToRemove);
                         BlurDict.Remove(blurToRemove.Name);
@@ -737,7 +737,7 @@ namespace OBSPlugin
             {
                 if (targetTargetBlur == null)
                 {
-                    if (BlurDict.TryGetValue("TargetTarget", out Blur blurToRemove))
+                    if (BlurDict.TryGetValue("TargetTarget", out Blur? blurToRemove))
                     {
                         BlurItemsToRemove.Add(blurToRemove);
                         BlurDict.Remove(blurToRemove.Name);
@@ -753,7 +753,7 @@ namespace OBSPlugin
         private unsafe void UpdateFocusTarget()
         {
             if (!Config.FocusTargetBlur) return;
-            Blur focusTargetBlur = null;
+            Blur? focusTargetBlur = null;
             var focusTargetInfo = Plugin.GameGui.GetAddonByName("_FocusTargetInfo", 1);
             if (focusTargetInfo.IsNull) return;
             unsafe
@@ -772,7 +772,7 @@ namespace OBSPlugin
             }
             if (focusTargetBlur == null)
             {
-                if (BlurDict.TryGetValue("FocusTarget", out Blur blurToRemove))
+                if (BlurDict.TryGetValue("FocusTarget", out Blur? blurToRemove))
                 {
                     BlurItemsToRemove.Add(blurToRemove);
                     BlurDict.Remove(blurToRemove.Name);
@@ -971,7 +971,7 @@ namespace OBSPlugin
             {
                 if (!Config.ChatLogBlur)
                 {
-                    Blur chatLogBlur = null;
+                    Blur? chatLogBlur = null;
                     if (BlurDict.TryGetValue("ChatLog", out chatLogBlur))
                     {
                         chatLogBlur.Enabled = false;
@@ -1023,7 +1023,7 @@ namespace OBSPlugin
             {
                 if (!Config.TargetBlur)
                 {
-                    Blur targetBlur = null;
+                    Blur? targetBlur = null;
                     if (BlurDict.TryGetValue("Target", out targetBlur))
                     {
                         targetBlur.Enabled = false;
@@ -1038,7 +1038,7 @@ namespace OBSPlugin
             {
                 if (!Config.TargetTargetBlur)
                 {
-                    Blur targetTargetBlur = null;
+                    Blur? targetTargetBlur = null;
                     if (BlurDict.TryGetValue("TargetTarget", out targetTargetBlur))
                     {
                         targetTargetBlur.Enabled = false;
@@ -1053,7 +1053,7 @@ namespace OBSPlugin
             {
                 if (!Config.FocusTargetBlur)
                 {
-                    Blur focusTargetBlur = null;
+                    Blur? focusTargetBlur = null;
                     if (BlurDict.TryGetValue("FocusTarget", out focusTargetBlur))
                     {
                         focusTargetBlur.Enabled = false;
@@ -1067,7 +1067,7 @@ namespace OBSPlugin
             {
                 if (!Config.CharacterBlur)
                 {
-                    Blur characterBlur = null;
+                    Blur? characterBlur = null;
                     if (BlurDict.TryGetValue("Character", out characterBlur))
                     {
                         characterBlur.Enabled = false;
@@ -1082,7 +1082,7 @@ namespace OBSPlugin
             {
                 if (!Config.FriendListBlur)
                 {
-                    Blur friendListBlur = null;
+                    Blur? friendListBlur = null;
                     if (BlurDict.TryGetValue("FriendList", out friendListBlur))
                     {
                         friendListBlur.Enabled = false;
@@ -1126,7 +1126,7 @@ namespace OBSPlugin
             {
                 if (!Config.CastBarBlur)
                 {
-                    Blur castbarBlur = null;
+                    Blur? castbarBlur = null;
                     if (BlurDict.TryGetValue("CastBar", out castbarBlur))
                     {
                         castbarBlur.Enabled = false;
