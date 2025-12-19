@@ -37,6 +37,9 @@ namespace OBSPlugin
         public bool ZoneAsSuffix = false;
         public bool StartRecordOnCountDown = false;
         public bool StopRecordOnCountDownCancel = true;
+        public bool StopRecordOnZoneExit = false;
+        public bool UseDutyName = false;
+        public bool StartReplayBufferOnRecord = false;
         public bool StartRecordOnCombat = false;
         public bool StopRecordOnCombat = false;
         public bool CancelStopRecordOnResume = true;

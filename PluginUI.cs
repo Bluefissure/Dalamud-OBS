@@ -1292,8 +1292,31 @@ namespace OBSPlugin
             if (Config.IncludeTerritory && Plugin.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED)
             {
                 var terriIdx = Plugin.ClientState.TerritoryType;
-                var terriName = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx).Map.Value.PlaceName.Value.Name;
-                curDir = Path.Combine(curDir, terriName.ToString());
+                string folderName;
+
+                if (Config.UseDutyName)
+                {
+                    // Try to get duty name from ContentFinderCondition
+                    var territory = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx);
+                    var cfcId = territory.ContentFinderCondition.RowId;
+                    if (cfcId > 0)
+                    {
+                        var cfc = Plugin.Data.GetExcelSheet<ContentFinderCondition>().GetRow(cfcId);
+                        folderName = cfc.Name.ToString();
+                    }
+                    else
+                    {
+                        // Fall back to zone name if not in a duty
+                        folderName = territory.Map.Value.PlaceName.Value.Name.ToString();
+                    }
+                }
+                else
+                {
+                    var terriName = Plugin.Data.GetExcelSheet<TerritoryType>().GetRow(terriIdx).Map.Value.PlaceName.Value.Name;
+                    folderName = terriName.ToString();
+                }
+
+                curDir = Path.Combine(curDir, folderName);
             }
 
             if (!Directory.Exists(curDir))

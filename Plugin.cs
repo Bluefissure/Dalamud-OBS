@@ -131,12 +131,12 @@ namespace OBSPlugin
                         {
                             PluginLog.Information("Auto start recording");
                             this.ui.SetRecordingDir();
-                            this.obs.StartRecord();
+                            StartRecordingWithReplayBuffer();
                         }
                     }
-                    catch (ErrorResponseException err)
+                    catch (Exception err)
                     {
-                        PluginLog.Warning("Start Recording Error: {0}", err);
+                        PluginLog.Warning("Failed to start recording on combat: {0}", err.Message);
                     }
                 }
                 else if (!this.state.InCombat)
@@ -215,11 +215,11 @@ namespace OBSPlugin
                     {
                         PluginLog.Information("Countdown started - auto start recording");
                         this.ui.SetRecordingDir();
-                        this.obs.StartRecord();
+                        StartRecordingWithReplayBuffer();
                     }
-                    catch (ErrorResponseException err)
+                    catch (Exception err)
                     {
-                        PluginLog.Warning("Start Recording Error: {0}", err);
+                        PluginLog.Warning("Failed to start recording on countdown: {0}", err.Message);
                     }
                 }
                 // Countdown stopped (CountingDown became false)
@@ -258,6 +258,32 @@ namespace OBSPlugin
 
             ClientState.TerritoryChanged += onTerritoryChanged;
         }
+        internal void StartRecordingWithReplayBuffer()
+        {
+            try
+            {
+                obs.StartRecord();
+
+                // Also start replay buffer if configured
+                if (config.StartReplayBufferOnRecord && obsReplayBufferStatus != OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+                {
+                    try
+                    {
+                        obs.StartReplayBuffer();
+                        PluginLog.Information("Started replay buffer with recording");
+                    }
+                    catch (ErrorResponseException err)
+                    {
+                        PluginLog.Debug("Could not start replay buffer: {0}", err.Message);
+                    }
+                }
+            }
+            catch (ErrorResponseException err)
+            {
+                PluginLog.Warning("Start Recording Error: {0}", err);
+            }
+        }
+
         public async Task StopRecordingAsync()
         {
             try
@@ -754,6 +780,21 @@ namespace OBSPlugin
         internal void onTerritoryChanged(ushort tid)
         {
             if (!Connected || !config.Enabled) return;
+
+            // Stop recording when leaving a zone (e.g., after killing boss with cutscene)
+            if (config.StopRecordOnZoneExit && obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+            {
+                try
+                {
+                    PluginLog.Information("Zone changed - auto stop recording");
+                    obs.StopRecord();
+                }
+                catch (ErrorResponseException err)
+                {
+                    PluginLog.Warning("Stop Recording Error: {0}", err);
+                }
+            }
+
             if (config.ResetReplayBufferDirByTerritory && obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
             {
                 if (obsRecordStatus != OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
