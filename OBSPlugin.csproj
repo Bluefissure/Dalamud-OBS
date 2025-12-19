@@ -1,10 +1,10 @@
-﻿<Project Sdk="Dalamud.NET.Sdk/13.0.0">
+﻿<Project Sdk="Dalamud.NET.Sdk/14.0.1">
 
 	<PropertyGroup>
 		<LangVersion>10.0</LangVersion>
-		<Version>1.0.5.2</Version>
-		<AssemblyVersion>1.0.5.2</AssemblyVersion>
-		<FileVersion>1.0.5.2</FileVersion>
+		<Version>1.0.5.4</Version>
+		<AssemblyVersion>1.0.5.4</AssemblyVersion>
+		<FileVersion>1.0.5.4</FileVersion>
 		<Authors>Bluefissure</Authors>
 		<Company>OtterCorp</Company>
 	</PropertyGroup>
