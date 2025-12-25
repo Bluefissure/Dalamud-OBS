@@ -1,4 +1,4 @@
-﻿{
+{
   "Name": "OBSPlugin",
   "Author": "Bluefissure",
   "Punchline": "Control OBS by websocket",

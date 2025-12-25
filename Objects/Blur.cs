@@ -31,7 +31,7 @@ namespace OBSPlugin.Objects
             return MemberwiseClone();
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is not Blur item)
             {
