@@ -1446,13 +1446,32 @@ namespace OBSPlugin
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Enter to save");
-
+            if (Config.UseDutyName)
+            {
+                ImGui.BeginDisabled();
+            }
             if (ImGui.Checkbox("Zone as subfolder", ref Config.IncludeTerritory))
             {
                 Config.Save();
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("If selected, will save recordings to a subfolder named by the current zone name.");
+            if (Config.UseDutyName)
+            {
+                ImGui.EndDisabled();
+            }
+            ImGui.SameLine(ImGui.GetColumnWidth() - 400);
+            if (ImGui.Checkbox("Duty name as subfolder", ref Config.UseDutyName))
+            {
+                if (Config.UseDutyName)
+                {
+                    // Set Config.IncludeTerritory by default
+                    Config.IncludeTerritory = true;
+                }
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Use duty name instead of zone name as the subfolder if in a duty.");
 
             if (ImGui.Checkbox("Zone as suffix", ref Config.ZoneAsSuffix))
             {
