@@ -59,7 +59,7 @@ namespace OBSPlugin
         internal OutputState obsRecordStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
         internal OutputState obsReplayBufferStatus = OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
         internal readonly StopWatchHook stopWatchHook;
-        internal CombatState state;
+        internal CombatState combatState;
         internal float lastCountdownValue;
 
         private bool _connectLock;
@@ -111,15 +111,15 @@ namespace OBSPlugin
             PluginInterface.UiBuilder.OpenMainUi += this.OpenMainUi;
 
 
-            state = new CombatState();
-            state.InCombatChanged += new EventHandler((object? sender, EventArgs e) =>
+            combatState = new CombatState();
+            combatState.InCombatChanged += new EventHandler((object? sender, EventArgs e) =>
             {
                 if (!Connected)
                 {
                     TryConnect(config.Address, config.Password);
                     if (!Connected) return;
                 }
-                if (this.state.InCombat && config.StartRecordOnCombat)
+                if (this.combatState.InCombat && config.StartRecordOnCombat)
                 {
                     try
                     {
@@ -139,7 +139,7 @@ namespace OBSPlugin
                         PluginLog.Warning("Failed to start recording on combat: {0}", err.Message);
                     }
                 }
-                else if (!this.state.InCombat)
+                else if (!this.combatState.InCombat)
                 {
                     if (config.StopRecordOnCombat)
                     {
@@ -200,16 +200,15 @@ namespace OBSPlugin
                     }
                 }
             });
-            state.CountingDownChanged += new EventHandler((object? sender, EventArgs e) =>
+            combatState.CountingDownChanged += new EventHandler((object? sender, EventArgs e) =>
             {
                 if (!Connected)
                 {
                     TryConnect(config.Address, config.Password);
                     return;
                 }
-
                 // Countdown started (CountingDown became true)
-                if (this.state.CountingDown && config.StartRecordOnCountDown)
+                if (this.combatState.CountingDown && config.StartRecordOnCountDown && this.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED)
                 {
                     try
                     {
@@ -223,7 +222,7 @@ namespace OBSPlugin
                     }
                 }
                 // Countdown stopped (CountingDown became false)
-                else if (!this.state.CountingDown && config.StopRecordOnCountDownCancel)
+                else if (!this.combatState.CountingDown && config.StopRecordOnCountDownCancel && this.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
                 {
                     // If countdown value is > 0.5, it was canceled (not completed naturally)
                     if (lastCountdownValue > 0.5f)
@@ -243,10 +242,10 @@ namespace OBSPlugin
                         PluginLog.Information("Countdown completed (engage) - keeping recording active");
                     }
                 }
-
-                lastCountdownValue = this.state.CountDownValue;
+                lastCountdownValue = this.combatState.CountDownValue;
+                PluginLog.Debug("lastCountdownValue: {0}", lastCountdownValue);
             });
-            this.stopWatchHook = new StopWatchHook(state, SigScanner, Condition, GameInteropProvider);
+            this.stopWatchHook = new StopWatchHook(combatState, SigScanner, Condition, GameInteropProvider);
 
             PluginLog.Information("stopWatchHook");
             this.commandManager = new PluginCommandManager<Plugin>(this, Commands);

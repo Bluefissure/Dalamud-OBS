@@ -28,7 +28,9 @@ namespace OBSPlugin.Objects
             get => _countingDown;
             set
             {
-                if (_countingDown == value) return;
+                // return only when it's not counting down
+                // otherwise the countdown value change won't be captured
+                if (value == false && _countingDown == value) return;
                 _countingDown = value;
                 CountingDownChanged?.Invoke(this, EventArgs.Empty);
             }

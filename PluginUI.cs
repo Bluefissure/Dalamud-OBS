@@ -1494,6 +1494,14 @@ namespace OBSPlugin
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("If selected, will automatically start recording when countdown starts.");
 
+            ImGui.SameLine(ImGui.GetColumnWidth() - 350);
+            if (ImGui.Checkbox("Stop Recording On CountDown Cancel", ref Config.StopRecordOnCountDownCancel))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will automatically stop recording when countdown gets cancelled.");
+
             if (ImGui.Checkbox("Stop Recording On Combat Over In", ref Config.StopRecordOnCombat))
             {
                 Config.Save();
@@ -1508,6 +1516,14 @@ namespace OBSPlugin
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Delay of \"Stop Recording On Combat Over\" in seconds.");
+
+            if (ImGui.Checkbox("Stop Recording On Zone Exit", ref Config.StopRecordOnZoneExit))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will automatically stop recording when exiting the zone.");
+
             if (Config.StopRecordOnCombat && ImGui.Checkbox("Don't Stop Recording in cutscene", ref Config.DontStopInCutscene))
             {
                 Config.Save();
@@ -1566,6 +1582,13 @@ namespace OBSPlugin
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
             ImGui.TextColored(Plugin.obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? new Vector4(0, 1, 0, 1) : new Vector4(1, 0, 0, 1),
                 Plugin.obsReplayBufferStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STARTED ? "Replaying" : "Stopped");
+
+            if (ImGui.Checkbox("Start Replay Buffer On Auto Record", ref Config.StartReplayBufferOnRecord))
+            {
+                Config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("If selected, will automatically start replay buffer when auto record starts");
 
             if (ImGui.Checkbox("Zone as sub folder", ref Config.ResetReplayBufferDirByTerritory))
             {

@@ -134,8 +134,6 @@ namespace OBSPlugin.Objects
 
         private void UpdateCountDown()
         {
-            _state.CountingDown = false;
-            _state.CountDownValue = 0f;
 
             if (_useAgentFallback)
             {
@@ -143,7 +141,12 @@ namespace OBSPlugin.Objects
                 return;
             }
 
-            if (_countDown == 0) return;
+            if (_countDown == 0)
+            {
+                _state.CountingDown = false;
+                _state.CountDownValue = 0f;
+                return;
+            }
 
             // Offsets from FFXIVClientStructs AgentCountDownSettingDialog:
             // 0x28 = TimeRemaining (float)
@@ -159,10 +162,20 @@ namespace OBSPlugin.Objects
             try
             {
                 var agentModule = AgentModule.Instance();
-                if (agentModule == null) return;
+                if (agentModule == null)
+                {
+                    _state.CountingDown = false;
+                    _state.CountDownValue = 0f;
+                    return;
+                }
 
                 var agent = agentModule->GetAgentByInternalId(AgentId.CountDownSettingDialog);
-                if (agent == null) return;
+                if (agent == null)
+                {
+                    _state.CountingDown = false;
+                    _state.CountDownValue = 0f;
+                    return;
+                }
 
                 var countdownAgent = (AgentCountDownSettingDialog*)agent;
                 var isActive = countdownAgent->Active;
