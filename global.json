@@ -5,6 +5,6 @@
     "allowPrerelease": false
   },
   "msbuild-sdks": {
-    "Dalamud.NET.Sdk": "14.0.1"
+    "Dalamud.NET.Sdk": "15.0.0"
   }
 }

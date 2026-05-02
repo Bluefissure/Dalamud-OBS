@@ -776,7 +776,7 @@ namespace OBSPlugin
             Chat.Print($"[OBSPlugin] Scene changed to {sceneName}.");
         }
 
-        internal void onTerritoryChanged(ushort tid)
+        internal void onTerritoryChanged(uint tid)
         {
             if (!Connected || !config.Enabled) return;
 
