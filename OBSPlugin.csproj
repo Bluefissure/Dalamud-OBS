@@ -1,4 +1,4 @@
-﻿<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+﻿<Project Sdk="Dalamud.NET.Sdk/15.0.0">
 
 	<PropertyGroup>
 		<LangVersion>10.0</LangVersion>
@@ -29,10 +29,6 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="lib\obs-websocket-dotnet\obs-websocket-dotnet\obs-websocket-dotnet.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <PackageReference Update="DalamudPackager" Version="15.0.0" />
 	</ItemGroup>
 
 </Project>
