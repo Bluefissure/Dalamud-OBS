@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using Lumina.Excel.Sheets;
 using System.IO;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 namespace OBSPlugin
 {
@@ -1316,6 +1317,7 @@ namespace OBSPlugin
                     folderName = terriName.ToString();
                 }
 
+                folderName = ReplaceInvalidFilenameChars(folderName, "-");
                 curDir = Path.Combine(curDir, folderName);
             }
 
@@ -1635,6 +1637,12 @@ namespace OBSPlugin
             {
                 ImGui.EndDisabled();
             }
+        }
+
+        static string ReplaceInvalidFilenameChars(string filename, string replacement)
+        {
+            var pattern = new Regex("[<>:\"/\\\\|?*]");
+            return pattern.Replace(filename, replacement);
         }
 
         internal void Dispose()
