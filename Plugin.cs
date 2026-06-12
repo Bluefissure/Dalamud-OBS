@@ -207,8 +207,8 @@ namespace OBSPlugin
                     TryConnect(config.Address, config.Password);
                     return;
                 }
-                // Countdown started (CountingDown became true)
-                if (this.combatState.CountingDown && config.StartRecordOnCountDown && this.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED)
+                // Countdown started (CountingDown became true) & Skipping DutyRecorder
+                if (this.combatState.CountingDown && config.StartRecordOnCountDown && this.obsRecordStatus == OutputState.OBS_WEBSOCKET_OUTPUT_STOPPED && !Condition[ConditionFlag.DutyRecorderPlayback])
                 {
                     try
                     {
